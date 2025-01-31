@@ -35,5 +35,7 @@ out/
 ### VS Code ###
 .vscode/
 
+/src/main/kotlin/util/MongoConstant.kt
+
 .env
 /.env

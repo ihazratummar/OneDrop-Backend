@@ -3,6 +3,8 @@ package com.api.hazrat
 import com.api.hazrat.route.bloodDonorRoutes
 import com.api.hazrat.schema.BloodDonorSchema
 import com.api.hazrat.service.BloodDonorService
+import com.api.hazrat.util.MongoConstant.MONGO_CONNECTION_URI
+import com.api.hazrat.util.MongoConstant.MONGO_DATABASE_NAME
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
 import io.ktor.server.application.*
@@ -33,14 +35,11 @@ fun Application.configureDatabases() {
  * @returns [MongoDatabase] instance
  * */
 fun Application.connectToMongoDB(): MongoDatabase {
-    val databaseName = System.getenv("DB_MONGO_DATABASE_NAME")
-    val uri = "mongodb://localhost:27017/"
-//    val uri = System.getenv("MONGO_URI")
-    val mongoClient = MongoClients.create(uri)
-    val database = mongoClient.getDatabase(databaseName)
+
+    val mongoClient = MongoClients.create(MONGO_CONNECTION_URI)
+    val database = mongoClient.getDatabase(MONGO_DATABASE_NAME)
     monitor.subscribe(ApplicationStopped) {
         mongoClient.close()
     }
-
     return database
 }

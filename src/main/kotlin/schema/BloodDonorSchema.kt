@@ -1,7 +1,7 @@
 package com.api.hazrat.schema
 
 import com.api.hazrat.model.BloodDonorModel
-import com.api.hazrat.util.Constant.USER_COLLECTION_NAME
+import com.api.hazrat.util.MongoConstant.USER_COLLECTION_NAME
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import kotlinx.coroutines.Dispatchers
