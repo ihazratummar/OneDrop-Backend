@@ -12,9 +12,7 @@ fun Application.bloodDonorRoutes(
     service: BloodDonorService
 ) {
     routing {
-
         route("api/donors"){
-
             post("/create-update-donor") {
                 try {
                     val bloodDonorModel = call.receive<BloodDonorModel>()

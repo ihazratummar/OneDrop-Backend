@@ -12,10 +12,10 @@ ktor-status-pages = {module ="io.ktor:ktor-server-status-pages", version.ref="kt
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor-version" }
 mongodb-driver-core = { module = "org.mongodb:mongodb-driver-core", version.ref = "mongo-version" }
 mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongo-version" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback-version" }
 bson = { module = "org.mongodb:bson", version.ref = "mongo-version" }
 ktor-serialization-gson = { module = "io.ktor:ktor-serialization-gson", version.ref = "ktor-version" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor-version" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback-version" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor-version" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor-version" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin-version" }

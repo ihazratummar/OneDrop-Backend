@@ -1,5 +1,6 @@
 package com.api.hazrat
 
+import com.api.hazrat.route.rootRouting
 import com.api.hazrat.serialization.configureSerialization
 import io.ktor.server.application.*
 import io.ktor.server.netty.*
@@ -11,5 +12,5 @@ fun main(args: Array<String>) {
 fun Application.module() {
     configureSerialization()
     configureDatabases()
-    configureRouting()
+    rootRouting()
 }
