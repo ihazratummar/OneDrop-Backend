@@ -1,7 +1,7 @@
 package com.api.hazrat.schema
 
 import com.api.hazrat.model.BloodDonorModel
-import com.api.hazrat.util.MongoConstant.USER_COLLECTION_NAME
+import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +59,21 @@ class BloodDonorSchema(
 
     suspend fun isBloodDonorExist(userId: String): Boolean = withContext(Dispatchers.IO) {
         userCollection.find(Document("_id", userId)).firstOrNull() != null
+    }
+
+    suspend fun toggleAvailability(userId: String, key: String): Boolean = withContext(Dispatchers.IO) {
+        val donorDocument = userCollection.find(Document("_id", userId)).firstOrNull()
+            ?: throw IllegalArgumentException("No Donor Found")
+
+        val currentAvailability = donorDocument.getBoolean(key)?: false
+        val updateAvailability = !currentAvailability
+
+        val result = userCollection.updateOne(
+            Document("_id", userId),
+            Document("\$set", Document(key, updateAvailability))
+        )
+
+        if (result.modifiedCount > 0) updateAvailability else throw IllegalStateException("Failed to update availability")
     }
 
 }

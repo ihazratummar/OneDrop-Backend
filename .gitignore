@@ -35,7 +35,10 @@ out/
 ### VS Code ###
 .vscode/
 
-/src/main/kotlin/util/MongoConstant.kt
+/src/main/kotlin/util/SecretConstant.kt
+/src/main/resources/firebase_service_account_key.json
+
+
 
 .env
 /.env

@@ -24,4 +24,8 @@ class BloodDonorService(
     suspend fun isBloodDonorExist(userId: String) : Boolean {
         return bloodDonorSchema.isBloodDonorExist(userId = userId)
     }
+
+    suspend fun toggleAvailability(userId: String, key: String): Boolean {
+        return bloodDonorSchema.toggleAvailability(userId = userId, key = key)
+    }
 }
