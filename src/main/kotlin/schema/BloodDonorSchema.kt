@@ -1,12 +1,15 @@
 package com.api.hazrat.schema
 
 import com.api.hazrat.model.BloodDonorModel
+import com.api.hazrat.util.EncryptionUtil
 import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
+import com.google.firebase.auth.FirebaseAuth
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bson.Document
+import com.google.firebase.cloud.FirestoreClient
 
 class BloodDonorSchema(
     database: MongoDatabase
@@ -22,19 +25,31 @@ class BloodDonorSchema(
     }
 
     suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String = withContext(Dispatchers.IO) {
-        val existingDonor = userCollection.find(Document("_id", bloodDonorModel.userId)).firstOrNull()
 
-        return@withContext if (existingDonor != null) {
+        val existingDonor = userCollection.find().toList().firstOrNull{document ->
+            val storedEmail = document.getString("email")?.let { EncryptionUtil.decrypt(it) }
+            val storedContact = document.getString("contactNumber")?.let { EncryptionUtil.decrypt(it) }
+            (storedEmail == bloodDonorModel.email) || (storedContact == bloodDonorModel.contactNumber)
+        }
+
+        if (existingDonor != null){
+            throw  IllegalArgumentException("A donor with same email or contact number already exist.")
+        }
+
+
+        val donorById = userCollection.find(Document("_id", bloodDonorModel.userId)).firstOrNull()
+
+        return@withContext if (donorById != null) {
             val updateDocument = bloodDonorModel.toDocument().apply {
                 remove("_id")
             }
 
 
             val result = userCollection.updateOne(
-                Document("_id", existingDonor["_id"]),
+                Document("_id", donorById["_id"]),
                 Document("\$set", updateDocument)
             )
-            if (result.modifiedCount > 0) existingDonor["_id"].toString() else throw IllegalStateException("Failed to update donor")
+            if (result.modifiedCount > 0) donorById["_id"].toString() else throw IllegalStateException("Failed to update donor")
         }else{
             // Create new donor
             val doc = bloodDonorModel.toDocument()
@@ -76,4 +91,29 @@ class BloodDonorSchema(
         if (result.modifiedCount > 0) updateAvailability else throw IllegalStateException("Failed to update availability")
     }
 
+    suspend fun deleteBloodDonor(userId: String) : Boolean = withContext(Dispatchers.IO) {
+        val donorDocument = userCollection.deleteOne(Document("_id", userId))
+        if (donorDocument.deletedCount > 0) true else throw  IllegalStateException("Failed to delete donor account")
+    }
+
+    suspend fun deleteUserAccount(userId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Attempt to delete the donor profile
+            val donorDocument = userCollection.deleteOne(Document("_id", userId))
+            donorDocument.deletedCount > 0
+
+            //Delete user data from firestore
+            val fireStore = FirestoreClient.getFirestore()
+            val collection = fireStore.collection("users").document(userId)
+            collection.delete().get()
+
+            // Delete Firebase user only if the donor profile exists or if it doesn't exist at all
+            FirebaseAuth.getInstance().deleteUser(userId)
+
+            true // Successfully deleted both
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false // Return false if any error occurs
+        }
+    }
 }

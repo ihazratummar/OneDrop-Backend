@@ -28,4 +28,12 @@ class BloodDonorService(
     suspend fun toggleAvailability(userId: String, key: String): Boolean {
         return bloodDonorSchema.toggleAvailability(userId = userId, key = key)
     }
+
+    suspend fun deleteBloodDonor(userId: String): Boolean {
+        return bloodDonorSchema.deleteBloodDonor(userId = userId)
+    }
+
+    suspend fun deleteFirebaseUser(userId: String) : Boolean {
+        return bloodDonorSchema.deleteUserAccount(userId = userId)
+    }
 }

@@ -61,6 +61,33 @@ fun Application.bloodDonorRoutes(
                         call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
                     }
                 }
+
+                delete ("/delete-donor"){
+                    val userID = call.parameters["userID"]?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing userId")
+
+                    try {
+                        val delete = service.deleteBloodDonor(userId = userID)
+                        call.respond(HttpStatusCode.OK, mapOf(
+                            "success" to delete.toString(), // Boolean field
+                            "message" to if (delete) "Deleted Successfully" else "Failed to Delete"
+                        ))
+                    }catch (e: Exception){
+                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
+                    }
+                }
+
+                delete("/delete-profile") {
+                    val userID = call.parameters["userID"]?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing userId")
+                    try {
+                        val delete = service.deleteFirebaseUser(userId = userID)
+                        call.respond(HttpStatusCode.OK, mapOf(
+                            "success" to delete.toString(),
+                            "message" to if (delete) "Deleted Successfully" else "Failed to Delete"
+                        ))
+                    }catch (e: Exception){
+                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
+                    }
+                }
             }
         }
     }

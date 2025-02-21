@@ -49,13 +49,28 @@ fun Application.bloodRequestRoutes(
                 get ("/get-blood-requests"){
 
                     try {
-                        val bloodRequests = service.getAllBloodRequest()
+                        val sortBy  = call.parameters["sortBy"] ?: "Recent"
+                        val bloodRequests = service.getAllBloodRequest(sortBy)
                         call.respond(HttpStatusCode.OK, bloodRequests)
                     }catch (e: Exception){
                         println("Error: ${e.localizedMessage}")
                         call.respond(HttpStatusCode.BadRequest, "Invalid request format")
                     }
 
+                }
+
+                delete("/delete-blood-request") {
+                    try {
+                        val bloodRequestId = call.parameters["bloodRequestId"]?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing bloodRequestId")
+                        val isDeleted = service.deleteBloodRequest(bloodRequestId = bloodRequestId)
+                        call.respond(HttpStatusCode.OK, mapOf(
+                            "success" to isDeleted.toString(), // Boolean field
+                            "message" to if (isDeleted) "Deleted Successfully" else "Failed to Delete"
+                        ))
+                    }catch (e: Exception){
+                        println("Error: ${e.localizedMessage}")
+                        call.respond(HttpStatusCode.BadRequest, "Invalid request")
+                    }
                 }
             }
         }

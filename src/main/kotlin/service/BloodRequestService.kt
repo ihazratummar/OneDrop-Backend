@@ -17,8 +17,12 @@ class BloodRequestService(
         return bloodRequestSchema.createBloodRequest(bloodRequestModel = bloodRequestModel)
     }
 
-    suspend fun getAllBloodRequest() : List<BloodRequestModel> {
-        return bloodRequestSchema.getAllBloodRequests()
+    suspend fun getAllBloodRequest(sortBy: String) : List<BloodRequestModel> {
+        return bloodRequestSchema.getAllBloodRequests(sortBy = sortBy)
+    }
+
+    suspend fun deleteBloodRequest(bloodRequestId: String) : Boolean {
+        return bloodRequestSchema.deleteBloodRequest(bloodRequestId = bloodRequestId)
     }
 
 }

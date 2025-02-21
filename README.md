@@ -38,7 +38,7 @@ If the server starts successfully, you'll see the following output:
 
 ```
 2024-12-04 14:32:45.584 [main] INFO  Application - Application started in 0.303 seconds.
-2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
+2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:9091
 ```
 
 # OneDrop-Backend
@@ -52,20 +52,28 @@ providing a RESTful API for managing donors and blood requests.
 
 - User Registration & Blood Donor Management
 - Blood Request Posting & Matching System
-- Authentication & Authorization (Planned)
-- Location-based Donor Search (Upcoming)
-- Real-time Notifications using FCM (Planned)
+- Real-time Notifications using FCM
+- Authorization 
+- Location-based Donor Search 
+
 
 ## 📁 API Routes
 
+### Blood Donor Endpoints
+| Endpoint                          | Method | Description                                      |
+| --------------------------------- | ------ | ------------------------------------------------ |
+| `/api/donors/create-update-donor` | POST   | Create or update a blood donor profile          |
+| `/api/donors/get-donors`          | GET    | Fetch all blood donors                          |
+| `/api/donors/donor-profile?userId={id}` | GET    | Retrieve a donor's profile by user ID           |
+| `/api/donors/is-donor-exist?userId={id}` | GET    | Check if a user is registered as a blood donor  |
+| `/api/donors/toggle-availability?userId={id}&key={key}` | POST   | Toggle availability status of a donor           |
 
-| Endpoint                      | Method | Description                                    |
-| ----------------------------- | ------ | ---------------------------------------------- |
-| `/create-update-donor`        | POST   | Create or update a blood donor profile         |
-| `/get-donors`                 | GET    | Fetch all blood donors                         |
-| `/donor-profile?userId={id}`  | GET    | Retrieve a donor's profile by user ID          |
-| `/is-donor-exist?userId={id}` | GET    | Check if a user is registered as a blood donor |
+### Blood Request Endpoints
 
+| Endpoint                                  | Method | Description                              |
+| ---------------------------------------- | ------ | ---------------------------------------- |
+| `/api/blood-request/create-blood-request` | POST   | Create a new blood request              |
+| `/api/blood-request/get-blood-requests`   | GET    | Fetch all blood requests                |
 
 # Developed & Maintained by 🚀
 ## [@ihazratummar](https://github.com/ihazratummar)
