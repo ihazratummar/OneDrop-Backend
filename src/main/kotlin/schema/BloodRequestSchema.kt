@@ -60,7 +60,8 @@ class BloodRequestSchema(
             district = bloodRequestModel.patientDistrict ?: "Murshidabad",
             state = bloodRequestModel.patientState ?: "West Bengal",
             bloodRequestId = insertedId,
-            userId = bloodRequestModel.userId
+            userId = bloodRequestModel.userId,
+            city = bloodRequestModel.patientCity ?: "Jangipur"
         )
 
         return@withContext insertedId
@@ -101,41 +102,61 @@ class BloodRequestSchema(
         message: String,
         district: String,
         state: String,
+        city: String,
         bloodRequestId: String,
         userId: String
     ) {
         withContext(Dispatchers.IO) {
             try {
 
-                val districtTopic = "blood_request_district_${district.replace(" ", "_").lowercase()}"
-                val stateTopic = "blood_request_state_${state.replace(" ", "_").lowercase()}"
+                val messageList = listOf(
+                    NotificationData(
+                        topic = "blood_request_city_${city.replace(" ", "_").lowercase()}",
+                        scope = "city"
+                    ),
+                    NotificationData(
+                        topic = "blood_request_district_${district.replace(" ", "_").lowercase()}",
+                        scope = "district"
+                    ),
+                    NotificationData(
+                        topic = "blood_request_state_${state.replace(" ", "_").lowercase()}",
+                        scope = "state"
+                    )
+                )
 
-                val districtMessage = Message.builder()
-                    .putData("title", title)
-                    .putData("body", message)
-                    .putData("bloodRequestId", bloodRequestId)
-                    .putData("notificationScope", "district")
-                    .putData("userId", userId)
-                    .setTopic(districtTopic)
-                    .build()
+                messageList.forEach {
+                    notificationBuilder(
+                        title = title,
+                        body = message,
+                        bloodRequestId = bloodRequestId,
+                        userId = userId,
+                        notificationScope = it.scope,
+                        notificationTopic = it.topic
+                    )
+                }
 
-                val stateMessage = Message.builder()
-                    .putData("title", title)
-                    .putData("body", message)
-                    .putData("bloodRequestId", bloodRequestId)
-                    .putData("notificationScope", "state")
-                    .putData("userId", userId)
-                    .setTopic(stateTopic)
-                    .build()
-
-
-                val response = FirebaseMessaging.getInstance().send(districtMessage)
-                val stateResponse = FirebaseMessaging.getInstance().send(stateMessage)
-                println("Notification sent to: $districtTopic and $stateTopic")
-                println("Notification sent to: $response $stateResponse")
             } catch (e: Exception) {
                 println("Error Sending notification: ${e.localizedMessage}")
             }
         }
     }
+
+    private fun notificationBuilder(title: String, body:String, bloodRequestId: String, userId: String, notificationScope: String, notificationTopic: String){
+        val message = Message.builder()
+            .putData("title", title)
+            .putData("body", body)
+            .putData("bloodRequestId", bloodRequestId)
+            .putData("notificationScope", notificationScope)
+            .putData("userId", userId)
+            .setTopic(notificationTopic)
+            .build()
+
+        val response = FirebaseMessaging.getInstance().send(message)
+        println("Notification sent to $notificationTopic $response")
+    }
 }
+
+data class NotificationData(
+    val scope: String,
+    val topic: String
+)

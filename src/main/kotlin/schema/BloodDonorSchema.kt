@@ -2,6 +2,7 @@ package com.api.hazrat.schema
 
 import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.util.EncryptionUtil
+import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
 import com.google.firebase.auth.FirebaseAuth
 import com.mongodb.client.MongoCollection
@@ -16,8 +17,10 @@ class BloodDonorSchema(
 ) {
 
     private var userCollection: MongoCollection<Document>
+    private var bloodRequestCollection: MongoCollection<Document>
 
     init {
+        bloodRequestCollection = database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
         if (!database.listCollectionNames().contains(USER_COLLECTION_NAME)) {
             database.createCollection(USER_COLLECTION_NAME)
         }
@@ -101,6 +104,9 @@ class BloodDonorSchema(
             // Attempt to delete the donor profile
             val donorDocument = userCollection.deleteOne(Document("_id", userId))
             donorDocument.deletedCount > 0
+
+            val bloodRequestDocument = bloodRequestCollection.deleteMany(Document("userId", userId))
+            bloodRequestDocument.deletedCount > 0
 
             //Delete user data from firestore
             val fireStore = FirestoreClient.getFirestore()
