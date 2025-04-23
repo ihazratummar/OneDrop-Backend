@@ -21,6 +21,7 @@ data class BloodRequestModel(
     val date: Long? = 0,
     val bloodUnit: Int? = 0,
     val urgency: String ?= "",
+    val requisitionForm: String? = "",
     val bloodRequestStatus: String? = "",
     val dateOfCreation: Long? = 0,
     val number: String ?=""
@@ -41,6 +42,7 @@ data class BloodRequestModel(
             append("date", date)
             append("bloodUnit", bloodUnit)
             append("urgency", urgency)
+            append("requisitionForm", requisitionForm)
             append("bloodRequestStatus", bloodRequestStatus)
             append("dateOfCreation", dateOfCreation)
             append("number", number?.let { EncryptionUtil.encrypt(it) })
@@ -65,6 +67,7 @@ data class BloodRequestModel(
                 date = document.getLong("date"),
                 bloodUnit = document.getInteger("bloodUnit"),
                 urgency = document.getString("urgency"),
+                requisitionForm = document.getString("requisitionForm"),
                 bloodRequestStatus = document.getString("bloodRequestStatus"),
                 dateOfCreation = document.getLong("dateOfCreation"),
                 number = document.getString("number")?.let { EncryptionUtil.decrypt(it) },

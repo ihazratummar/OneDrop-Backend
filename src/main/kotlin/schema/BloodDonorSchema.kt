@@ -35,9 +35,6 @@ class BloodDonorSchema(
             (storedEmail == bloodDonorModel.email) || (storedContact == bloodDonorModel.contactNumber)
         }
 
-        if (existingDonor != null){
-            throw  IllegalArgumentException("A donor with same email or contact number already exist.")
-        }
 
 
         val donorById = userCollection.find(Document("_id", bloodDonorModel.userId)).firstOrNull()
@@ -54,6 +51,11 @@ class BloodDonorSchema(
             )
             if (result.modifiedCount > 0) donorById["_id"].toString() else throw IllegalStateException("Failed to update donor")
         }else{
+
+            if (existingDonor != null){
+            throw  IllegalArgumentException("A donor with same email or contact number already exist.")
+        }
+
             // Create new donor
             val doc = bloodDonorModel.toDocument()
             userCollection.insertOne(doc)
