@@ -36,4 +36,8 @@ class BloodDonorService(
     suspend fun deleteFirebaseUser(userId: String) : Boolean {
         return bloodDonorSchema.deleteUserAccount(userId = userId)
     }
+
+    suspend fun setNotificationScope(userId: String, notificationScope: String): Boolean {
+        return bloodDonorSchema.setNotificationScope(userId = userId, notificationScope = notificationScope)
+    }
 }

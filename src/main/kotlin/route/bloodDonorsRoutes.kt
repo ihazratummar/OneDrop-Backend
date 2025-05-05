@@ -107,6 +107,18 @@ fun Application.bloodDonorRoutes(
                         call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
                     }
                 }
+
+                patch("/set-notification-scope"){
+                    try {
+                        val userId = call.parameters["userId"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing userId")
+                        val notificationScope = call.parameters["notificationScope"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing notificationScope")
+                        val update = service.setNotificationScope(userId = userId, notificationScope = notificationScope)
+                        call.respond(HttpStatusCode.OK, update)
+                    }catch (e: Exception){
+                        DiscordLogger.log("❌ Error in set-notification-scope: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}")
+                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
+                    }
+                }
             }
         }
     }

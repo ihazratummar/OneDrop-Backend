@@ -160,4 +160,28 @@ class BloodDonorSchema(
         }
     }
 
+    suspend fun setNotificationScope(userId: String, notificationScope: String): Boolean = withContext(Dispatchers.IO) {
+        return@withContext  try {
+            val donorDocument = userCollection.find(Document("_id", userId)).firstOrNull()
+                ?: throw IllegalArgumentException("No donor found with this id")
+
+            val updateDocument = Document("\$set", Document("notificationScope", notificationScope))
+
+            val result = userCollection.updateOne(
+                Document("_id", donorDocument["_id"]),
+                updateDocument
+            )
+
+            if (result.modifiedCount > 0) {
+                true
+            }else{
+                DiscordLogger.log("Failed to update notification scope for userId: $userId")
+                throw IllegalStateException("Failed to update notification scope")
+            }
+        }catch (e: Exception){
+            DiscordLogger.log("Error in setNotificationScope: ${e.localizedMessage}")
+            false
+        }
+    }
+
 }
