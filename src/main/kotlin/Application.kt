@@ -2,6 +2,7 @@ package com.api.hazrat
 
 import com.api.hazrat.route.rootRouting
 import com.api.hazrat.serialization.configureSerialization
+import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.SecretConstant.ONE_DROP_API_TOKEN
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
@@ -41,6 +42,7 @@ fun Application.authentication(){
                 if(bearerTokenCredential.token == ONE_DROP_API_TOKEN){
                     UserIdPrincipal("admin")
                 }else{
+                    DiscordLogger.log("🔐 Unauthorized access with token: ${bearerTokenCredential.token}")
                     null
                 }
             }

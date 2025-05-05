@@ -1,26 +1,27 @@
 package com.api.hazrat.schema
 
 import com.api.hazrat.model.BloodDonorModel
+import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.EncryptionUtil
 import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.cloud.FirestoreClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bson.Document
-import com.google.firebase.cloud.FirestoreClient
 
 class BloodDonorSchema(
     database: MongoDatabase
 ) {
 
     private var userCollection: MongoCollection<Document>
-    private var bloodRequestCollection: MongoCollection<Document>
+    private var bloodRequestCollection: MongoCollection<Document> = database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
 
     init {
-        bloodRequestCollection = database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
         if (!database.listCollectionNames().contains(USER_COLLECTION_NAME)) {
             database.createCollection(USER_COLLECTION_NAME)
         }
@@ -103,25 +104,46 @@ class BloodDonorSchema(
 
     suspend fun deleteUserAccount(userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Attempt to delete the donor profile
-            val donorDocument = userCollection.deleteOne(Document("_id", userId))
-            donorDocument.deletedCount > 0
 
-            val bloodRequestDocument = bloodRequestCollection.deleteMany(Document("userId", userId))
-            bloodRequestDocument.deletedCount > 0
-
-            //Delete user data from firestore
+            // Delete user data from Firestore
             val fireStore = FirestoreClient.getFirestore()
             val collection = fireStore.collection("users").document(userId)
-            collection.delete().get()
 
-            // Delete Firebase user only if the donor profile exists or if it doesn't exist at all
+            val isDeleted = collection.delete().isDone
+            if (isDeleted){
+                println("User data deleted from Firestore")
+            }else{
+                println("Failed to delete user data from Firestore")
+            }
+
+            // Attempt to delete Firebase user
             FirebaseAuth.getInstance().deleteUser(userId)
 
-            true // Successfully deleted both
+            // Check if user was deleted successfully from Firebase (if no exception is thrown)
+            val firebaseUserDeleted = try {
+                FirebaseAuth.getInstance().getUser(userId) // This will throw if the user doesn't exist
+                false // User still exists, so deletion failed
+            } catch (e: FirebaseAuthException) {
+                DiscordLogger.log("User with ID `$userId` deleted from Firebase. ${e.localizedMessage}" )
+                true // User not found, deletion was successful
+            }
+
+            // Attempt to delete the donor profile from MongoDB
+            val donorDocument = userCollection.deleteOne(Document("_id", userId))
+            val donorDeleted = donorDocument.deletedCount > 0
+
+            // Attempt to delete the blood request data from MongoDB
+            val bloodRequestDocument = bloodRequestCollection.deleteMany(Document("userId", userId))
+            val bloodRequestDeleted = bloodRequestDocument.deletedCount > 0 || bloodRequestDocument.deletedCount.toInt() == 0
+
+
+
+            // Return true if all deletions were successful
+            return@withContext  donorDeleted || bloodRequestDeleted || firebaseUserDeleted
         } catch (e: Exception) {
             e.printStackTrace()
-            false // Return false if any error occurs
+            return@withContext  false // Return false if any error occurs
         }
     }
+
 }

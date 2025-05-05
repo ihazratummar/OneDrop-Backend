@@ -2,10 +2,13 @@ package com.api.hazrat
 
 import com.api.hazrat.route.bloodDonorRoutes
 import com.api.hazrat.route.bloodRequestRoutes
+import com.api.hazrat.route.reportRoutes
 import com.api.hazrat.schema.BloodDonorSchema
 import com.api.hazrat.schema.BloodRequestSchema
+import com.api.hazrat.schema.ReportSchema
 import com.api.hazrat.service.BloodDonorService
 import com.api.hazrat.service.BloodRequestService
+import com.api.hazrat.service.ReportService
 import com.api.hazrat.util.SecretConstant.MONGO_CONNECTION_URI
 import com.api.hazrat.util.SecretConstant.MONGO_DATABASE_NAME
 import com.mongodb.client.MongoClients
@@ -22,6 +25,10 @@ fun Application.configureDatabases() {
     val bloodRequestSchema = BloodRequestSchema(database = mongoDatabase)
     val bloodRequestService = BloodRequestService(bloodRequestSchema = bloodRequestSchema)
     bloodRequestRoutes(service = bloodRequestService)
+
+    val reportSchema = ReportSchema(database = mongoDatabase)
+    val reportService = ReportService(reportSchema = reportSchema)
+    reportRoutes(reportService = reportService)
 
 }
 

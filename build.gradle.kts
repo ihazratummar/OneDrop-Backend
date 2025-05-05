@@ -38,4 +38,8 @@ dependencies {
     testImplementation(libs.kotlin.test.junit)
 
     implementation(libs.firebase.admin)
+
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.content.negotiation)
 }
