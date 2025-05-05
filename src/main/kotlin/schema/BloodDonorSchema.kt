@@ -65,20 +65,34 @@ class BloodDonorSchema(
     }
 
     suspend fun getAllDonors(): List<BloodDonorModel> = withContext(Dispatchers.IO) {
-        userCollection.find()
-            .map { BloodDonorModel.fromDocument(it) }
-            .toList()
+
+        try {
+            userCollection.find()
+                .map { BloodDonorModel.fromDocument(it) }
+                .toList()
+        }catch (e:Exception){
+            DiscordLogger.log("Error fetching all donors: ${e.localizedMessage}")
+            emptyList<BloodDonorModel>()
+        }
+
     }
 
 
     suspend fun getDonorProfile(userId: String): BloodDonorModel = withContext(Dispatchers.IO) {
-        val donorDocument = userCollection.find(Document("_id", userId)).firstOrNull()
-            ?: throw IllegalArgumentException("No donor found with this id")
 
-        BloodDonorModel.fromDocument(donorDocument)
+        try {
+            val donorDocument = userCollection.find(Document("_id", userId)).firstOrNull()
+                ?: throw IllegalArgumentException("No donor found with this id")
+            BloodDonorModel.fromDocument(donorDocument)
+        }catch (e:Exception){
+            DiscordLogger.log("Error fetching donor profile: ${e.localizedMessage}")
+            throw IllegalStateException("Failed to fetch donor profile")
+        }
+
     }
 
     suspend fun isBloodDonorExist(userId: String): Boolean = withContext(Dispatchers.IO) {
+
         userCollection.find(Document("_id", userId)).firstOrNull() != null
     }
 
