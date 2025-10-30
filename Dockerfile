@@ -1,7 +1,7 @@
 # ================================
 # Stage 1: Cache Gradle dependencies 🧩
 # ================================
-FROM gradle:jdk22 AS cache
+FROM gradle:8.11-jdk21 AS cache
 WORKDIR /home/gradle/app
 
 # Copy Gradle build files (for dependency caching)
@@ -16,7 +16,7 @@ RUN gradle build -x test --no-daemon || true
 # ================================
 # Stage 2: Build Application 🏗️
 # ================================
-FROM gradle:jdk22 AS build
+FROM gradle:8.11-jdk21 AS build
 WORKDIR /home/gradle/app
 
 # Copy cached Gradle home
@@ -37,8 +37,8 @@ WORKDIR /app
 # Copy the built jar from build stage
 COPY --from=build /home/gradle/app/build/libs/*.jar ./onedrop-backend.jar
 
-# Expose app port
-EXPOSE 8080
+# Match your server port
+EXPOSE 9091
 
 # Run the app
 ENTRYPOINT ["java","-jar","onedrop-backend.jar"]

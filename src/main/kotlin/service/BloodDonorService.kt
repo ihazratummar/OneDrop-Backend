@@ -36,4 +36,19 @@ class BloodDonorService(
     suspend fun deleteFirebaseUser(userId: String) : Boolean {
         return bloodDonorSchema.deleteUserAccount(userId = userId)
     }
+
+    suspend fun incrementDonorScore(userId: String, inc: Int): Boolean {
+        return bloodDonorSchema.incrementDonorScore(userId = userId, inc = inc)
+    }
+    suspend fun resetDonorScoreDonorScore(userId: String): Boolean {
+        return bloodDonorSchema.resetBloodDonorScore(userId = userId)
+    }
+
+    suspend fun updateLastResponse(userId: String, timestamp: Long): Boolean {
+        return bloodDonorSchema.updateLastResponse(userId = userId, timestamp =timestamp)
+    }
+
+    suspend fun updateLastDonationAt(userId: String, timestamp: Long): Boolean {
+        return bloodDonorSchema.updateLastDonationAt(userId = userId, timestamp =timestamp)
+    }
 }

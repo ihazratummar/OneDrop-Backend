@@ -19,11 +19,14 @@ fun Application.migrationRoutes(
 
                     val update = Document()
                         .append(
-                            "\$set", Document()
+                            $$"$set", Document()
+                                .append("lastResponseAt", null)
+                                .append("lastDonationAt", null)
+
                         )
                         .append(
-                            "\$unset", Document()
-                                .append("profileCompleted", 0)
+                            $$"$unset", Document()
+                                .append("ghostCount", 0)
                         )
 
                     val result = donorCollection.updateMany(Document(), update)

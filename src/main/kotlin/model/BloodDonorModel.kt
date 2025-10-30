@@ -26,7 +26,6 @@ data class BloodDonorModel(
 
     // --- New fields (all optional / default-safe) ---
     val donorScore: Int? = 0,
-    val ghostCount: Int? = 0,
     val lastResponseAt: Long? = null,
     val lastDonationAt: Long? = null,
     val createdAt: Long? = Instant.now().toEpochMilli(),
@@ -49,7 +48,6 @@ data class BloodDonorModel(
             append("email", email?.let { EncryptionUtil.encrypt(it) }) // sensitive
 
             append("donorScore", donorScore)
-            append("ghostCount", ghostCount)
             append("lastResponseAt", lastResponseAt)
             append("lastDonationAt", lastDonationAt)
             append("createdAt", createdAt)
@@ -75,7 +73,6 @@ data class BloodDonorModel(
                 email = document.getString("email")?.let { EncryptionUtil.decrypt(it) },
 
                 donorScore = document.getInteger("donorScore", 0),
-                ghostCount = document.getInteger("ghostCount", 0),
                 lastResponseAt = document.getLong("lastResponseAt"),
                 lastDonationAt = document.getLong("lastDonationAt"),
                 createdAt = document.getLong("createdAt"),
