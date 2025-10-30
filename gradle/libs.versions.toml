@@ -31,6 +31,8 @@ kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version
 
 firebase-admin = {module = "com.google.firebase:firebase-admin", version.ref="firebse-admin"}
 
+kotlin-swagger = { module="io.ktor:ktor-server-swagger", version.ref="ktor-version"}
+
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor-version" }

@@ -1,6 +1,6 @@
 package com.api.hazrat.util
 
-import com.api.hazrat.util.SecretConstant.DISCORD_API_URL
+import com.api.hazrat.util.SecretConstant.DISCORD_WEBHOOK_URL
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -34,7 +34,7 @@ object DiscordLogger {
             try {
                 println("Sending to Discord: $message") // ✅ Print before sending
 
-                val response = client.post(DISCORD_API_URL) {
+                val response = client.post(DISCORD_WEBHOOK_URL) {
                     contentType(ContentType.Application.Json)
                     setBody(DiscordMessage("<@475357995367137282> $message"))
                 }

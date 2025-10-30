@@ -30,33 +30,42 @@ class BloodDonorSchema(
 
     suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String = withContext(Dispatchers.IO) {
 
-        val existingDonor = userCollection.find().toList().firstOrNull{document ->
+        // First, check if donor exists by userId
+        val donorById = userCollection.find(Document("_id", bloodDonorModel.userId)).firstOrNull()
+
+        // Check for duplicate email/contact (but exclude the current donor if updating)
+        val existingDonor = userCollection.find().toList().firstOrNull { document ->
             val storedEmail = document.getString("email")?.let { EncryptionUtil.decrypt(it) }
             val storedContact = document.getString("contactNumber")?.let { EncryptionUtil.decrypt(it) }
-            (storedEmail == bloodDonorModel.email) || (storedContact == bloodDonorModel.contactNumber)
+            val documentId = document.getString("_id")
+
+            // Match email or contact, but NOT the same document we're updating
+            ((storedEmail == bloodDonorModel.email) || (storedContact == bloodDonorModel.contactNumber))
+                    && documentId != bloodDonorModel.userId
+        }
+
+        // If duplicate found (and it's not the same donor), throw error
+        if (existingDonor != null) {
+            throw IllegalArgumentException("A donor with same email or contact number already exists.")
         }
 
 
-
-        val donorById = userCollection.find(Document("_id", bloodDonorModel.userId)).firstOrNull()
-
         return@withContext if (donorById != null) {
+            // Update existing donor
             val updateDocument = bloodDonorModel.toDocument().apply {
                 remove("_id")
             }
 
-
             val result = userCollection.updateOne(
-                Document("_id", donorById["_id"]),
+                Document("_id", bloodDonorModel.userId),
                 Document("\$set", updateDocument)
             )
-            if (result.modifiedCount > 0) donorById["_id"].toString() else throw IllegalStateException("Failed to update donor")
-        }else{
-
-            if (existingDonor != null){
-            throw  IllegalArgumentException("A donor with same email or contact number already exist.")
-        }
-
+            if (result.modifiedCount > 0) {
+                bloodDonorModel.userId!!
+            } else {
+                throw IllegalStateException("Failed to update donor")
+            }
+        } else {
             // Create new donor
             val doc = bloodDonorModel.toDocument()
             userCollection.insertOne(doc)

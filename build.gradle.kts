@@ -5,19 +5,17 @@ plugins {
     alias(libs.plugins.kotlin.plugin.serialization)
 }
 
+
 group = "com.api.hazrat"
 version = "0.0.1"
 
 application {
-    mainClass.set("io.ktor.server.netty.EngineMain")
+    mainClass = "io.ktor.server.netty.EngineMain"
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }
 
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     implementation(libs.ktor.server.content.negotiation)
