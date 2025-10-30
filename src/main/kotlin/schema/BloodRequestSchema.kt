@@ -49,7 +49,31 @@ class BloodRequestSchema(
             throw TooManyFormFieldsException()
         }
 
-        val doc = bloodRequestModel.toDocument()
+        val donationCode = (1..6)
+            .map { ('A'..'Z') + ('0'..'9') }
+            .flatten()
+            .shuffled()
+            .take(6)
+            .joinToString("")
+
+        val expiryAt =  bloodRequestModel.date?.let {
+             + it
+        }
+
+        val newRequest = bloodRequestModel.copy(
+            id = null,
+            bloodRequestStatus = "Pending",
+            donationCode = donationCode,
+            donorsResponded = emptyList(),
+            verifiedDonors = emptyList(),
+            donationClaims = emptyList(),
+            dateOfCreation = System.currentTimeMillis(),
+            lastUpdatedAt = System.currentTimeMillis(),
+            fulfilledAt = null,
+            expiryAt = expiryAt
+        )
+
+        val doc = newRequest.toDocument()
         bloodRequestCollection.insertOne(doc)
 
         val insertedId = doc.getObjectId("_id").toString()
@@ -84,10 +108,7 @@ class BloodRequestSchema(
     suspend fun deleteBloodRequest(bloodRequestId: String): Boolean = withContext(Dispatchers.IO) {
         val objectId = ObjectId(bloodRequestId)
         val exists = bloodRequestCollection.find(Document("_id", objectId)).firstOrNull()
-
-        if (exists == null) {
-            throw IllegalStateException("Blood Request Not Found")
-        }
+            ?: throw IllegalStateException("Blood Request Not Found")
 
         val document = bloodRequestCollection.deleteOne(Document("_id", objectId))
 

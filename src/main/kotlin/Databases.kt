@@ -10,6 +10,7 @@ import com.api.hazrat.schema.ReportSchema
 import com.api.hazrat.service.BloodDonorService
 import com.api.hazrat.service.BloodRequestService
 import com.api.hazrat.service.ReportService
+import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.SecretConstant.MONGO_CONNECTION_URI
 import com.api.hazrat.util.SecretConstant.MONGO_DATABASE_NAME
 import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
@@ -17,7 +18,7 @@ import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
 import io.ktor.server.application.*
 
-fun Application.configureDatabases() {
+fun Application.configureDatabases(): MongoDatabase {
     val mongoDatabase = connectToMongoDB()
     val bloodDonorSchema = BloodDonorSchema(mongoDatabase)
     val bloodDonorService = BloodDonorService(bloodDonorSchema = bloodDonorSchema)
@@ -34,6 +35,7 @@ fun Application.configureDatabases() {
 
     migrationRoutes(donorCollection = mongoDatabase.getCollection(USER_COLLECTION_NAME))
 
+    return mongoDatabase
 }
 
 /**

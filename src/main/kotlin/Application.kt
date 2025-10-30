@@ -1,9 +1,12 @@
 package com.api.hazrat
 
+import com.api.hazrat.route.migrationRoutes
 import com.api.hazrat.route.rootRouting
 import com.api.hazrat.serialization.configureSerialization
 import com.api.hazrat.util.DiscordLogger
+import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.SecretConstant.ONE_DROP_API_TOKEN
+import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
@@ -26,6 +29,15 @@ fun Application.module() {
         .build()
 
     FirebaseApp.initializeApp(options)
+    val mongoDatabase = connectToMongoDB()
+    val expiryJob = BloodRequestExpiryJob(
+        bloodRequestCollection = mongoDatabase.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
+    )
+    expiryJob.start()
+    environment.monitor.subscribe(ApplicationStopping){
+        expiryJob.stop()
+    }
+
 
     embeddedServer(Netty, port = 9091, host = "0.0.0.0") {
         authentication()
