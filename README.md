@@ -44,7 +44,7 @@ If the server starts successfully, you'll see the following output:
 # OneDrop-Backend
 
 
-This project is the backend service for **OneDrop**, a blood donation app where users can join as blood donors 
+This project is the backend service for **OneDrop**, a blood donation app where users can join as blood donors
 and request blood from the community. The backend is built using **Ktor** and **MongoDB**,
 providing a RESTful API for managing donors and blood requests.
 
@@ -53,8 +53,8 @@ providing a RESTful API for managing donors and blood requests.
 - User Registration & Blood Donor Management
 - Blood Request Posting & Matching System
 - Real-time Notifications using FCM
-- Authorization 
-- Location-based Donor Search 
+- Authorization
+- Location-based Donor Search
 
 
 ## 📁 API Routes

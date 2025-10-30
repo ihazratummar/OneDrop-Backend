@@ -39,8 +39,3 @@ out/
 
 /src/main/kotlin/util/SecretConstant.kt
 /src/main/resources/firebase_service_account_key.json
-
-
-
-.env
-/.env
