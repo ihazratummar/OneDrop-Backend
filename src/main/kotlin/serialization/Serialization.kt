@@ -52,7 +52,7 @@ fun Application.configureSerialization() {
         }
         status(HttpStatusCode.Unauthorized) { call, code ->
             DiscordLogger.log("🔐 Unauthorized access: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}")
-            call.respond(HttpStatusCode.Unauthorized, "Unauthorized access. Please check your credentials.")
+            call.respond(HttpStatusCode.Unauthorized, "$code: Unauthorized access. Please check your credentials.")
         }
     }
 
