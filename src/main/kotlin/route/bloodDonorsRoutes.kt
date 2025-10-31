@@ -8,7 +8,6 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -92,21 +91,6 @@ fun Application.bloodDonorRoutes(
                     }
                 }
 
-                patch("/score") {
-                    val userID = call.parameters["userID"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    val increment = call.request.queryParameters["inc"]?.toIntOrNull()?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing Inc Value")
-
-                    try {
-                        val success = service.incrementDonorScore(userId = userID, inc = increment)
-                        call.respond(HttpStatusCode.OK, message = mapOf(
-                            "success" to success.toString(),
-                            "message" to if (success) "Score updated +$increment" else "Failed to add score"
-                        ))
-                    }catch (e: Exception){
-                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
-                    }
-                }
-
                 patch("/score-reset") {
                     val userID = call.parameters["userID"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing userId")
                     try {
@@ -114,31 +98,6 @@ fun Application.bloodDonorRoutes(
                         call.respond(HttpStatusCode.OK, message = mapOf(
                             "success" to success.toString(),
                             "message" to if (success) "Score reset to 0" else "Failed to add score"
-                        ))
-                    }catch (e: Exception){
-                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
-                    }
-                }
-
-                patch("/last-response") {
-                    val userID = call.parameters["userID"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    try {
-                        val success = service.updateLastResponse(userId = userID, timestamp = Clock.System.now().toEpochMilliseconds())
-                        call.respond(HttpStatusCode.OK, message = mapOf(
-                            "success" to success.toString(),
-                            "message" to if (success) "Update donor last response to ${Clock.System.now()}" else "Failed update last response"
-                        ))
-                    }catch (e: Exception){
-                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
-                    }
-                }
-                patch("/last-donation") {
-                    val userID = call.parameters["userID"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    try {
-                        val success = service.updateLastDonationAt(userId = userID, timestamp = Clock.System.now().toEpochMilliseconds())
-                        call.respond(HttpStatusCode.OK, message = mapOf(
-                            "success" to success.toString(),
-                            "message" to if (success) "Update donor last donation to ${Clock.System.now()}" else "Failed update last donation"
                         ))
                     }catch (e: Exception){
                         call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")

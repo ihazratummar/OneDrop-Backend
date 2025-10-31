@@ -29,7 +29,8 @@ data class BloodDonorModel(
     val lastResponseAt: Long? = null,
     val lastDonationAt: Long? = null,
     val createdAt: Long? = Instant.now().toEpochMilli(),
-    val updatedAt: Long? = Instant.now().toEpochMilli()
+    val updatedAt: Long? = Instant.now().toEpochMilli(),
+    val bloodDonated: List<String>? = emptyList(),
 ) {
     fun toDocument(): Document {
         return Document().apply {
@@ -52,6 +53,7 @@ data class BloodDonorModel(
             append("lastDonationAt", lastDonationAt)
             append("createdAt", createdAt)
             append("updatedAt", updatedAt)
+            append("bloodDonated", bloodDonated)
         }
     }
 
@@ -76,7 +78,8 @@ data class BloodDonorModel(
                 lastResponseAt = document.getLong("lastResponseAt"),
                 lastDonationAt = document.getLong("lastDonationAt"),
                 createdAt = document.getLong("createdAt"),
-                updatedAt = document.getLong("updatedAt")
+                updatedAt = document.getLong("updatedAt"),
+                bloodDonated = document.getList("bloodDonated", String::class.java)
             )
         }
     }

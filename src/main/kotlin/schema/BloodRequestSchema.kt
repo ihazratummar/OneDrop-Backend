@@ -1,5 +1,6 @@
 package com.api.hazrat.schema
 
+import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
@@ -7,7 +8,9 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.Updates
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.TooManyFormFieldsException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -56,8 +59,8 @@ class BloodRequestSchema(
             .take(6)
             .joinToString("")
 
-        val expiryAt =  bloodRequestModel.date?.let {
-             + it
+        val expiryAt = bloodRequestModel.date?.let {
+            +it
         }
 
         val newRequest = bloodRequestModel.copy(
@@ -93,7 +96,7 @@ class BloodRequestSchema(
 
     suspend fun getAllBloodRequests(sortBy: String): List<BloodRequestModel> = withContext(Dispatchers.IO) {
 
-        val sortField = when(sortBy){
+        val sortField = when (sortBy) {
             "Recent" -> Document("dateOfCreation", -1)
             "Date" -> Document("date", 1)
             else -> Document("dateOfCreation", -1)
@@ -116,6 +119,183 @@ class BloodRequestSchema(
         else throw IllegalStateException("Failed to Delete Blood Request")
     }
 
+    suspend fun claimBloodRequest(bloodRequestId: String, bloodDonorId: String): OperationResult =
+        withContext(Dispatchers.IO) {
+            val requestDoc = bloodRequestCollection.find(
+                Filters.eq("_id", ObjectId(bloodRequestId))
+            ).firstOrNull() ?: return@withContext OperationResult.Failure("Blood request not found")
+
+            val request = BloodRequestModel.fromDocument(requestDoc)
+
+            if (request.expiryAt != null && request.expiryAt < System.currentTimeMillis()) {
+                return@withContext OperationResult.Failure("This blood request has been expired.")
+            }
+
+            //add donor only if not already added
+            val update = Updates.addToSet("donorsResponded", bloodDonorId)
+            val result = bloodRequestCollection.updateOne(
+                Filters.eq("_id", ObjectId(bloodRequestId)),
+                update
+            )
+
+            if (result.modifiedCount > 0) {
+                bloodDonorCollection.updateOne(
+                    Filters.eq("_id", bloodDonorId),
+                    Updates.combine(
+                        Updates.set("lastResponseAt", System.currentTimeMillis()),
+                        Updates.inc("donorScore", 2),
+                    )
+
+                )
+
+                OperationResult.Success("Blood Donor added to blood request")
+            } else {
+                OperationResult.Failure("Donor Already responded to failed to update")
+            }
+        }
+
+    suspend fun verifyDonation(bloodRequestId: String, bloodDonorId: String, code: String): OperationResult =
+        withContext(
+            Dispatchers.IO
+        ) {
+            val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(bloodRequestId))).firstOrNull()
+                ?: return@withContext OperationResult.Failure("Blood request not found")
+
+            val request = BloodRequestModel.fromDocument(requestDoc)
+
+
+            if (request.donationCode != code) {
+                return@withContext OperationResult.Failure("Invalid donation code")
+            }
+
+            if (request.verifiedDonors?.any { it.donorId == bloodDonorId } == true) {
+                return@withContext OperationResult.Failure("You are already verified")
+            }
+
+            val verifyDonor = Document(
+                mapOf(
+                    "donorId" to bloodDonorId,
+                    "verifiedAt" to System.currentTimeMillis()
+                )
+            )
+
+            val updates = Updates.combine(
+                Updates.addToSet("verifiedDonors", verifyDonor),
+                Updates.set("lastUpdatedAt", System.currentTimeMillis())
+            )
+
+            val result = bloodRequestCollection.updateOne(
+                Filters.eq("_id", ObjectId(bloodRequestId)),
+                updates
+            )
+
+            if (result.modifiedCount > 0) {
+                bloodDonorCollection.updateOne(
+                    Filters.eq("_id", bloodDonorId),
+                    Updates.combine(
+                        Updates.addToSet("bloodDonated", bloodRequestId),
+                        Updates.set("lastDonationAt", System.currentTimeMillis()),
+                        Updates.inc("donorScore", 10),
+                    )
+                )
+
+
+                return@withContext OperationResult.Success("Donation successfully verified.")
+            } else {
+                return@withContext OperationResult.Failure("Donor already added to verify list or failed to add.")
+            }
+        }
+
+    suspend fun submitDonationProof(requestId: String, donorId: String, proofUrl: String): OperationResult =
+        withContext(
+            Dispatchers.IO
+        ) {
+            val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId))).firstOrNull()
+                ?: return@withContext OperationResult.Failure("Blood request not found")
+
+            val claim = Document(
+                mapOf(
+                    "donorId" to donorId,
+                    "proofUrl" to proofUrl,
+                    "uploadedAt" to System.currentTimeMillis()
+                )
+            )
+            val result = bloodRequestCollection.updateOne(
+                Filters.eq("_id", ObjectId(requestId)),
+                Updates.combine(
+                    Updates.addToSet("donationClaims", claim),
+                    Updates.set("lastUpdatedAt", System.currentTimeMillis()),
+                )
+            )
+
+            if (result.modifiedCount > 0) {
+                return@withContext OperationResult.Success("Donation proof uploaded successfully.")
+            } else {
+                return@withContext OperationResult.Failure("Failed to upload proof")
+            }
+        }
+
+    suspend fun verifyDonationClaim(requestId: String, donorId: String): OperationResult = withContext(Dispatchers.IO) {
+        val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId))).firstOrNull()
+            ?: return@withContext OperationResult.Failure("Blood request not found")
+
+        val result = bloodRequestCollection.updateOne(
+            Filters.and(
+                Filters.eq("_id", ObjectId(requestId)),
+                Filters.eq("donationClaims.donorId", donorId)
+            ),
+            Updates.combine(
+                Updates.set("donationClaims.$.verified", true),
+                Updates.push("verifiedDonors", Document(mapOf(
+                    "donorId" to donorId,
+                    "unitsDonated" to 1,
+                    "verifiedAt" to System.currentTimeMillis(),
+                    "verifiedByCode" to false
+                ))),
+                Updates.set("lastUpdatedAt", System.currentTimeMillis())
+            )
+        )
+
+        if (result.modifiedCount > 0) {
+            // ✅ Update donor record
+            bloodDonorCollection.updateOne(
+                Filters.eq("_id", donorId),
+                Updates.combine(
+                    Updates.inc("donorScore", 10),
+                    Updates.set("lastDonationAt", System.currentTimeMillis()),
+                    Updates.addToSet("bloodDonated", requestId)
+                )
+            )
+            return@withContext OperationResult.Success("Donation claim verified and donor updated.")
+        } else {
+            return@withContext OperationResult.Failure("Failed to verify claim.")
+        }
+    }
+
+
+    suspend fun markRequestFulfilled(requestId: String): OperationResult = withContext(Dispatchers.IO) {
+        val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId))).firstOrNull()
+            ?: return@withContext OperationResult.Failure("Blood request not found")
+
+        val request = BloodRequestModel.fromDocument(requestDoc)
+        if (request.bloodRequestStatus == "Fulfilled") {
+            return@withContext OperationResult.Failure("Request already marked fulfilled")
+        }
+        val result = bloodRequestCollection.updateOne(
+            Filters.eq("_id", ObjectId(requestId)),
+            Updates.combine(
+                Updates.set("bloodRequestStatus", "Fulfilled"),
+                Updates.set("fulfilledAt", System.currentTimeMillis()),
+                Updates.set("lastUpdatedAt", System.currentTimeMillis()),
+            )
+        )
+
+        if (result.modifiedCount > 0) {
+            return@withContext OperationResult.Success("Blood request marked as fulfilled.")
+        } else {
+            return@withContext OperationResult.Failure("Failed to mark as fulfilled.")
+        }
+    }
 
 
     private suspend fun sendNewBloodRequestNotification(
@@ -162,7 +342,14 @@ class BloodRequestSchema(
         }
     }
 
-    private fun notificationBuilder(title: String, body:String, bloodRequestId: String, userId: String, notificationScope: String, notificationTopic: String){
+    private fun notificationBuilder(
+        title: String,
+        body: String,
+        bloodRequestId: String,
+        userId: String,
+        notificationScope: String,
+        notificationTopic: String
+    ) {
         val message = Message.builder()
             .putData("title", title)
             .putData("body", body)

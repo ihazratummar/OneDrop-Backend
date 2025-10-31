@@ -163,22 +163,6 @@ class BloodDonorSchema(
         }
     }
 
-
-    @OptIn(ExperimentalTime::class)
-    suspend fun incrementDonorScore(userId: String, inc: Int): Boolean = withContext(Dispatchers.IO){
-        try {
-            val result = donorCollection.updateOne(
-                Filters.eq("_id", userId),
-                Updates.combine(
-                    Updates.inc("donorScore", inc),
-                    Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
-                )
-            )
-            return@withContext result.modifiedCount > 0
-        }catch (e: Exception){
-            return@withContext  false
-        }
-    }
     @OptIn(ExperimentalTime::class)
     suspend fun resetBloodDonorScore(userId: String): Boolean = withContext(Dispatchers.IO){
         try {
@@ -189,42 +173,6 @@ class BloodDonorSchema(
                     Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
                 )
             )
-            return@withContext result.modifiedCount > 0
-        }catch (e: Exception){
-            return@withContext  false
-        }
-    }
-
-
-    @OptIn(ExperimentalTime::class)
-    suspend fun updateLastResponse(userId: String, timestamp: Long) : Boolean = withContext(Dispatchers.IO){
-        try {
-
-            val query = Filters.eq("_id", userId)
-            val updates = Updates.combine(
-                Updates.set("lastResponseAt", timestamp),
-                Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
-            )
-            val options = UpdateOptions().upsert(true)
-            val result = donorCollection.updateOne(query,updates, options )
-            return@withContext result.modifiedCount > 0
-        }catch (e: Exception){
-            return@withContext  false
-        }
-    }
-
-
-    @OptIn(ExperimentalTime::class)
-    suspend fun updateLastDonationAt(userId: String, timestamp: Long) : Boolean = withContext(Dispatchers.IO){
-        try {
-
-            val query = Filters.eq("_id", userId)
-            val updates = Updates.combine(
-                Updates.set("lastDonationAt", timestamp),
-                Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
-            )
-//            val options = UpdateOptions().upsert(true)
-            val result = donorCollection.updateOne(query,updates, options )
             return@withContext result.modifiedCount > 0
         }catch (e: Exception){
             return@withContext  false

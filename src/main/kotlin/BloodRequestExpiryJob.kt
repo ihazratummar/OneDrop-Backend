@@ -51,7 +51,7 @@ class BloodRequestExpiryJob (
                 }catch (e: Exception){
                     DiscordLogger.log("[BLOOD REQUEST EXPIRY JOB] Error: ${e.localizedMessage}")
                 }
-                delay(TimeUnit.SECONDS.toMillis(intervalMinutes))
+                delay(TimeUnit.MINUTES.toMillis(intervalMinutes))
             }
         }
     }
