@@ -103,6 +103,26 @@ fun Application.bloodDonorRoutes(
                         call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
                     }
                 }
+
+                patch("set-notification-scope"){
+                    val userId = call.parameters["userID"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing userId")
+                    val notificationScope = call.parameters["notificationScope"]?: return@patch call.respond(HttpStatusCode.BadRequest, "Missing notificationScope")
+                    try {
+                        val success = service.updateNotificationScope(
+                            userId = userId,
+                            notificationScope = notificationScope
+                        )
+                        call.respond(
+                            HttpStatusCode.OK,
+                            message = mapOf(
+                                "success" to success.toString(),
+                                "message" to if(success) "Notification Scope updated to $notificationScope" else "Failed to update notification scope"
+                            )
+                        )
+                    }catch (e: Exception){
+                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
+                    }
+                }
             }
         }
     }

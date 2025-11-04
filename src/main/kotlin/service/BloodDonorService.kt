@@ -40,4 +40,8 @@ class BloodDonorService(
     suspend fun resetDonorScoreDonorScore(userId: String): Boolean {
         return bloodDonorSchema.resetBloodDonorScore(userId = userId)
     }
+
+    suspend fun updateNotificationScope(userId: String, notificationScope: String) : Boolean{
+        return bloodDonorSchema.updateNotificationScope(userId = userId, notificationScope = notificationScope)
+    }
 }

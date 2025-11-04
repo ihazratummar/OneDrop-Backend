@@ -175,7 +175,8 @@ class BloodRequestSchema(
             val verifyDonor = Document(
                 mapOf(
                     "donorId" to bloodDonorId,
-                    "verifiedAt" to System.currentTimeMillis()
+                    "verifiedAt" to System.currentTimeMillis(),
+                    "verifiedByCode" to true
                 )
             )
 
@@ -217,7 +218,8 @@ class BloodRequestSchema(
                 mapOf(
                     "donorId" to donorId,
                     "proofUrl" to proofUrl,
-                    "uploadedAt" to System.currentTimeMillis()
+                    "claimedAt" to System.currentTimeMillis(),
+                    "verified" to false
                 )
             )
             val result = bloodRequestCollection.updateOne(
@@ -239,19 +241,21 @@ class BloodRequestSchema(
         val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId))).firstOrNull()
             ?: return@withContext OperationResult.Failure("Blood request not found")
 
+
+        val verifyDonor = Document(mapOf(
+            "donorId" to donorId,
+            "verifiedAt" to System.currentTimeMillis(),
+            "verifiedByCode" to false
+        ))
+
         val result = bloodRequestCollection.updateOne(
             Filters.and(
                 Filters.eq("_id", ObjectId(requestId)),
                 Filters.eq("donationClaims.donorId", donorId)
             ),
             Updates.combine(
-                Updates.set("donationClaims.$.verified", true),
-                Updates.push("verifiedDonors", Document(mapOf(
-                    "donorId" to donorId,
-                    "unitsDonated" to 1,
-                    "verifiedAt" to System.currentTimeMillis(),
-                    "verifiedByCode" to false
-                ))),
+                Updates.pull("donationClaims", Document("donorId", donorId)),
+                Updates.push("verifiedDonors", verifyDonor),
                 Updates.set("lastUpdatedAt", System.currentTimeMillis())
             )
         )

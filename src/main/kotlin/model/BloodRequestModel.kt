@@ -77,7 +77,6 @@ data class BloodRequestModel(
             append("verifiedDonors", verifiedDonors?.map {
                 Document()
                     .append("donorId", it.donorId)
-                    .append("unitsDonated", it.unitsDonated)
                     .append("verifiedAt", it.verifiedAt)
                     .append("verifiedByCode", it.verifiedByCode)
             })
@@ -98,7 +97,6 @@ data class BloodRequestModel(
             val verifiedDonors = verifiedDonorDocs?.map {
                 VerifiedDonor(
                     donorId = it.getString("donorId"),
-                    unitsDonated = it.getInteger("unitsDonated", 1),
                     verifiedAt = it.getLong("verifiedAt"),
                     verifiedByCode = it.getBoolean("verifiedByCode", true)
                 )
@@ -153,7 +151,6 @@ data class BloodRequestModel(
 @Serializable
 data class VerifiedDonor(
     val donorId: String,
-    val unitsDonated: Int = 1,
     val verifiedAt: Long = System.currentTimeMillis(),
     val verifiedByCode: Boolean = true
 )

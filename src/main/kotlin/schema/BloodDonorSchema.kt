@@ -179,4 +179,21 @@ class BloodDonorSchema(
         }
     }
 
+    @OptIn(ExperimentalTime::class)
+    suspend fun updateNotificationScope(userId: String, notificationScope: String) : Boolean = withContext(Dispatchers.IO){
+        try {
+            val result = donorCollection.updateOne(
+                Filters.eq("_id", userId),
+                Updates.combine(
+                    Updates.set("notificationScope", notificationScope),
+                    Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
+                )
+            )
+            return@withContext result.modifiedCount > 0
+        }catch (e: Exception){
+            DiscordLogger.log("Failed to update notification scope of $userId and the error is ${e.localizedMessage}")
+            return@withContext false
+        }
+    }
+
 }
