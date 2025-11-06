@@ -108,6 +108,32 @@ class BloodRequestSchema(
             .toList()
     }
 
+    suspend fun getBloodRequest(bloodRequestId: String): OperationResult<BloodRequestModel> = withContext(Dispatchers.IO) {
+        try {
+            val objectId = ObjectId(bloodRequestId)
+            val bloodRequest = bloodRequestCollection.find(
+                Filters.eq("_id", objectId)
+            ).firstOrNull()
+
+            if (bloodRequest != null) {
+                OperationResult.Success(
+                    data = BloodRequestModel.fromDocument(bloodRequest),
+                    message = "Blood request found successfully"
+                )
+            } else {
+                OperationResult.Failure(
+                    message = "Blood request not found",
+                    error = "No blood request exists with ID: $bloodRequestId"
+                )
+            }
+        } catch (e: Exception) {
+            OperationResult.Failure(
+                message = "Failed to fetch blood request",
+                error = e.message ?: "Unknown error occurred"
+            )
+        }
+    }
+
     suspend fun deleteBloodRequest(bloodRequestId: String): Boolean = withContext(Dispatchers.IO) {
         val objectId = ObjectId(bloodRequestId)
         val exists = bloodRequestCollection.find(Document("_id", objectId)).firstOrNull()
@@ -119,7 +145,7 @@ class BloodRequestSchema(
         else throw IllegalStateException("Failed to Delete Blood Request")
     }
 
-    suspend fun claimBloodRequest(bloodRequestId: String, bloodDonorId: String): OperationResult =
+    suspend fun claimBloodRequest(bloodRequestId: String, bloodDonorId: String): OperationResult<String> =
         withContext(Dispatchers.IO) {
             val requestDoc = bloodRequestCollection.find(
                 Filters.eq("_id", ObjectId(bloodRequestId))
@@ -154,7 +180,7 @@ class BloodRequestSchema(
             }
         }
 
-    suspend fun verifyDonation(bloodRequestId: String, bloodDonorId: String, code: String): OperationResult =
+    suspend fun verifyDonation(bloodRequestId: String, bloodDonorId: String, code: String): OperationResult<String> =
         withContext(
             Dispatchers.IO
         ) {
@@ -207,7 +233,7 @@ class BloodRequestSchema(
             }
         }
 
-    suspend fun submitDonationProof(requestId: String, donorId: String, proofUrl: String): OperationResult =
+    suspend fun submitDonationProof(requestId: String, donorId: String, proofUrl: String): OperationResult<String> =
         withContext(
             Dispatchers.IO
         ) {
@@ -237,7 +263,7 @@ class BloodRequestSchema(
             }
         }
 
-    suspend fun verifyDonationClaim(requestId: String, donorId: String): OperationResult = withContext(Dispatchers.IO) {
+    suspend fun verifyDonationClaim(requestId: String, donorId: String): OperationResult<String> = withContext(Dispatchers.IO) {
         val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId))).firstOrNull()
             ?: return@withContext OperationResult.Failure("Blood request not found")
 
@@ -277,7 +303,7 @@ class BloodRequestSchema(
     }
 
 
-    suspend fun markRequestFulfilled(requestId: String): OperationResult = withContext(Dispatchers.IO) {
+    suspend fun markRequestFulfilled(requestId: String): OperationResult<String> = withContext(Dispatchers.IO) {
         val requestDoc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId))).firstOrNull()
             ?: return@withContext OperationResult.Failure("Blood request not found")
 

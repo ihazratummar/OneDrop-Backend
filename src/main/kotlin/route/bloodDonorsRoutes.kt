@@ -1,5 +1,6 @@
 package com.api.hazrat.route
 
+import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.service.BloodDonorService
 import io.ktor.http.*
@@ -119,6 +120,31 @@ fun Application.bloodDonorRoutes(
                                 "message" to if(success) "Notification Scope updated to $notificationScope" else "Failed to update notification scope"
                             )
                         )
+                    }catch (e: Exception){
+                        call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
+                    }
+                }
+
+                get("get-blood-donated-list"){
+                    val userId = call.parameters["userID"]?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        message = "Missing userid"
+                    )
+                    try {
+                        val success  = service.getMyBloodDonationList(userId = userId)
+                        when(success){
+                            is OperationResult.Failure -> {
+                                call.respond(
+                                    call.respond(HttpStatusCode.NotFound, success.error.toString())
+                                )
+                            }
+                            is OperationResult.Success ->  {
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    message = success.data
+                                )
+                            }
+                        }
                     }catch (e: Exception){
                         call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
                     }

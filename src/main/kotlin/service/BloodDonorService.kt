@@ -1,6 +1,8 @@
 package com.api.hazrat.service
 
+import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodDonorModel
+import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.schema.BloodDonorSchema
 
 class BloodDonorService(
@@ -43,5 +45,9 @@ class BloodDonorService(
 
     suspend fun updateNotificationScope(userId: String, notificationScope: String) : Boolean{
         return bloodDonorSchema.updateNotificationScope(userId = userId, notificationScope = notificationScope)
+    }
+
+    suspend fun getMyBloodDonationList(userId: String) : OperationResult<List<BloodRequestModel>> {
+        return bloodDonorSchema.getMyBloodDonationList(userId = userId)
     }
 }

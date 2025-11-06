@@ -22,18 +22,22 @@ class BloodRequestService(
         return bloodRequestSchema.getAllBloodRequests(sortBy = sortBy)
     }
 
+    suspend fun getBloodRequest(bloodRequestId: String): OperationResult<BloodRequestModel> {
+        return bloodRequestSchema.getBloodRequest(bloodRequestId = bloodRequestId)
+    }
+
     suspend fun deleteBloodRequest(bloodRequestId: String) : Boolean {
         return bloodRequestSchema.deleteBloodRequest(bloodRequestId = bloodRequestId)
     }
 
-    suspend fun claimBloodRequest(bloodRequestId: String, bloodDonorId: String): OperationResult {
+    suspend fun claimBloodRequest(bloodRequestId: String, bloodDonorId: String): OperationResult<String> {
         return bloodRequestSchema.claimBloodRequest(
             bloodRequestId = bloodRequestId,
             bloodDonorId = bloodDonorId
         )
     }
 
-    suspend fun verifyDonation(bloodRequestId: String, bloodDonorId: String, code: String): OperationResult {
+    suspend fun verifyDonation(bloodRequestId: String, bloodDonorId: String, code: String): OperationResult<String> {
         return bloodRequestSchema.verifyDonation(
             bloodRequestId = bloodRequestId,
             bloodDonorId = bloodDonorId,
@@ -41,7 +45,7 @@ class BloodRequestService(
         )
     }
 
-    suspend fun submitDonationProof(requestId: String, donorId: String, proofUrl: String): OperationResult {
+    suspend fun submitDonationProof(requestId: String, donorId: String, proofUrl: String): OperationResult<String> {
         return bloodRequestSchema.submitDonationProof(
             requestId = requestId,
             donorId = donorId,
@@ -49,11 +53,11 @@ class BloodRequestService(
         )
     }
 
-    suspend fun verifyDonationClaim(requestId: String, donorId: String): OperationResult {
+    suspend fun verifyDonationClaim(requestId: String, donorId: String): OperationResult<String> {
         return bloodRequestSchema.verifyDonationClaim(requestId = requestId, donorId = donorId)
     }
 
-    suspend fun markRequestFulfilled(requestId: String) : OperationResult{
+    suspend fun markRequestFulfilled(requestId: String) : OperationResult<String> {
         return bloodRequestSchema.markRequestFulfilled(
             requestId = requestId
         )

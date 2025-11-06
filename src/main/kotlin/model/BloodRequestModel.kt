@@ -2,7 +2,6 @@ package com.api.hazrat.model
 
 import com.api.hazrat.util.EncryptionUtil
 import kotlinx.serialization.Serializable
-import org.apache.commons.logging.Log
 import org.bson.Document
 import org.bson.types.ObjectId
 

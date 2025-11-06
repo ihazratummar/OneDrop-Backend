@@ -65,6 +65,27 @@ fun Application.bloodRequestRoutes(
 
                 }
 
+                get("/get-blood-request") {
+
+                    try {
+                        val bloodRequestId = call.parameters["bloodRequestId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing Request Id")
+                        when(val bloodRequests = service.getBloodRequest(bloodRequestId)){
+                            is OperationResult.Failure -> {
+                                call.respond(HttpStatusCode.BadRequest, bloodRequests.message)
+                            }
+                            is OperationResult.Success-> {
+                                call.respond(HttpStatusCode.OK, bloodRequests.data)
+                            }
+                        }
+
+
+                    } catch (e: Exception) {
+                        println("Error: ${e.localizedMessage}")
+                        call.respond(HttpStatusCode.BadRequest, "Invalid request format")
+                    }
+
+                }
+
                 delete("/delete-blood-request") {
                     try {
                         val bloodRequestId = call.parameters["bloodRequestId"] ?: return@delete call.respond(
@@ -93,8 +114,11 @@ fun Application.bloodRequestRoutes(
                         )
 
                         when (success) {
-                            is OperationResult.Success -> call.respond(HttpStatusCode.OK, success)
-                            is OperationResult.Failure -> call.respond(HttpStatusCode.BadRequest, success)
+                            is OperationResult.Success -> {
+                                val message = success.message
+                                call.respond(HttpStatusCode.OK, message.toString())
+                            }
+                            is OperationResult.Failure -> call.respond(HttpStatusCode.BadRequest, success.message)
                         }
                     } catch (e: Exception) {
                         println("Error: ${e.localizedMessage}")

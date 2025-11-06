@@ -1,6 +1,8 @@
 package com.api.hazrat.schema
 
+import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodDonorModel
+import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.EncryptionUtil
 import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
@@ -16,6 +18,7 @@ import com.mongodb.client.model.Updates
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bson.Document
+import org.bson.types.ObjectId
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -194,6 +197,50 @@ class BloodDonorSchema(
             DiscordLogger.log("Failed to update notification scope of $userId and the error is ${e.localizedMessage}")
             return@withContext false
         }
+    }
+
+    suspend fun getMyBloodDonationList(userId: String) : OperationResult<List<BloodRequestModel>> = withContext(Dispatchers.IO) {
+        try {
+            val donorDocument = donorCollection.find(
+                Filters.eq("_id", userId)
+            ).firstOrNull()
+            if (donorDocument == null){
+                return@withContext OperationResult.Failure(
+                    message = "Donor not found",
+                    error = "No donor exists with ID: $userId"
+                )
+            }
+            val bloodDonatedIds = donorDocument.getList("bloodDonated", String::class.java)?: emptyList()
+            if (bloodDonatedIds.isEmpty()){
+                return@withContext OperationResult.Success(
+                    data = emptyList(),
+                    message = "No blood donation history found"
+                )
+            }
+            val objectIds = bloodDonatedIds.mapNotNull {
+                try {
+                    ObjectId(it)
+                }catch (e: Exception){
+                    null
+                }
+            }
+            val bloodRequests = bloodRequestCollection.find(
+                Filters.`in`("_id", objectIds)
+            ).map {
+                BloodRequestModel.fromDocument(it)
+            }.toList()
+
+            OperationResult.Success(
+                data = bloodRequests,
+                message = "Blood donation history retrieved successfully"
+            )
+        }catch (e: Exception){
+            OperationResult.Failure(
+                message = "Failed to fetch blood donation history",
+                error = e.message ?: "Unknown error occurred"
+            )
+        }
+
     }
 
 }
