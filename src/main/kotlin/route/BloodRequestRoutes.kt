@@ -2,6 +2,7 @@ package com.api.hazrat.route
 
 import com.api.hazrat.execptions.ErrorResponse
 import com.api.hazrat.execptions.OperationResult
+import com.api.hazrat.model.BloodRequestFilters
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.service.BloodRequestService
 import io.ktor.http.*
@@ -56,7 +57,8 @@ fun Application.bloodRequestRoutes(
 
                     try {
                         val sortBy = call.parameters["sortBy"] ?: "Recent"
-                        val bloodRequests = service.getAllBloodRequest(sortBy)
+                        val filter = call.parameters["statusFilter"] ?: BloodRequestFilters.ALL.displayName
+                        val bloodRequests = service.getAllBloodRequest(sortBy = sortBy, filter = filter)
                         call.respond(HttpStatusCode.OK, bloodRequests)
                     } catch (e: Exception) {
                         println("Error: ${e.localizedMessage}")

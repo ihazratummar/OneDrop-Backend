@@ -1,6 +1,7 @@
 package com.api.hazrat.service
 
 import com.api.hazrat.execptions.OperationResult
+import com.api.hazrat.model.BloodRequestFilters
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.schema.BloodRequestSchema
 
@@ -18,8 +19,8 @@ class BloodRequestService(
         return bloodRequestSchema.createBloodRequest(bloodRequestModel = bloodRequestModel)
     }
 
-    suspend fun getAllBloodRequest(sortBy: String) : List<BloodRequestModel> {
-        return bloodRequestSchema.getAllBloodRequests(sortBy = sortBy)
+    suspend fun getAllBloodRequest(sortBy: String, filter: String? = null) : List<BloodRequestModel> {
+        return bloodRequestSchema.getAllBloodRequests(sortBy = sortBy, filter = filter)
     }
 
     suspend fun getBloodRequest(bloodRequestId: String): OperationResult<BloodRequestModel> {

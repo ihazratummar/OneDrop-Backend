@@ -1,6 +1,7 @@
 package com.api.hazrat.schema
 
 import com.api.hazrat.execptions.OperationResult
+import com.api.hazrat.model.BloodRequestFilters
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
@@ -10,6 +11,7 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.Updates
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.TooManyFormFieldsException
 import kotlinx.coroutines.Dispatchers
@@ -94,15 +96,21 @@ class BloodRequestSchema(
         return@withContext insertedId
     }
 
-    suspend fun getAllBloodRequests(sortBy: String): List<BloodRequestModel> = withContext(Dispatchers.IO) {
+    suspend fun getAllBloodRequests(sortBy: String, filter: String? = null): List<BloodRequestModel> = withContext(Dispatchers.IO) {
 
         val sortField = when (sortBy) {
-            "Recent" -> Document("dateOfCreation", -1)
-            "Date" -> Document("date", 1)
-            else -> Document("dateOfCreation", -1)
+            "Recent" -> Sorts.descending("dateOfCreation")
+            "Date" -> Sorts.ascending("date")
+            else -> Sorts.descending("dateOfCreation")
         }
 
-        bloodRequestCollection.find()
+        val filterDoc = if (filter == null || filter.equals("All", ignoreCase = true)){
+            Filters.empty()
+        }else{
+            Filters.eq("bloodRequestStatus", filter)
+        }
+
+        bloodRequestCollection.find(filterDoc)
             .sort(sortField)
             .map { BloodRequestModel.fromDocument(it) }
             .toList()

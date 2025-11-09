@@ -161,3 +161,15 @@ data class DonationClaim(
     val proofUrl: String? = null,  // uploaded proof photo / form / receipt
     val verified: Boolean = false  // true when verified by admin or requester
 )
+
+
+enum class BloodRequestFilters(
+    val displayName: String
+) {
+    ALL(displayName = "All"),
+    ACTIVE(displayName = "Active"),
+    FULFILLED(displayName = "Fulfilled"),
+    EXPIRED(displayName = "Expired");
+
+    override fun toString(): String = displayName
+}
