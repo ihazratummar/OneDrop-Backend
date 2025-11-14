@@ -67,7 +67,7 @@ class BloodRequestSchema(
 
         val newRequest = bloodRequestModel.copy(
             id = null,
-            bloodRequestStatus = "Pending",
+            bloodRequestStatus = "Active",
             donationCode = donationCode,
             donorsResponded = emptyList(),
             verifiedDonors = emptyList(),
