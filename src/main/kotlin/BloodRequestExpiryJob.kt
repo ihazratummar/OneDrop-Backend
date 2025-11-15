@@ -1,9 +1,9 @@
 package com.api.hazrat
 
 import com.api.hazrat.util.DiscordLogger
-import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
+import com.mongodb.kotlin.client.coroutine.MongoCollection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,11 +45,21 @@ class BloodRequestExpiryJob (
                     val result = bloodRequestCollection.updateMany(expiredFilter, update)
 
                     if (result.modifiedCount > 0) {
-                        DiscordLogger.log("[BloodRequestExpiryJob] Expired ${result.modifiedCount} requests at ${java.util.Date(now)}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "INFO",
+                                message = "[BloodRequestExpiryJob] Expired ${result.modifiedCount} requests at ${java.util.Date(now)}"
+                            )
+                        )
                     }
 
                 }catch (e: Exception){
-                    DiscordLogger.log("[BLOOD REQUEST EXPIRY JOB] Error: ${e.localizedMessage}")
+                    DiscordLogger.log(
+                        DiscordLogger.LogMessage(
+                            level = "ERROR",
+                            message = "[BLOOD REQUEST EXPIRY JOB] Error: ${e.localizedMessage}"
+                        )
+                    )
                 }
                 delay(TimeUnit.MINUTES.toMillis(intervalMinutes))
             }

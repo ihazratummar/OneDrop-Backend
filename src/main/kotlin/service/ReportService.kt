@@ -35,6 +35,6 @@ class ReportService(
     }
 
     suspend fun updateReportStatus(reportId: String, reportStatus: ReportStatus): Boolean {
-        return reportSchema.updateReportStatus(reportId = reportId, reportStatus = reportStatus)
+        return reportSchema.updateReportStatus(reportId = reportId, status = reportStatus)
     }
 }

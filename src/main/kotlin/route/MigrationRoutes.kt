@@ -1,6 +1,6 @@
 package com.api.hazrat.route
 
-import com.mongodb.client.MongoCollection
+import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
