@@ -1,7 +1,6 @@
 package com.api.hazrat.schema
 
-// ❗ FIXED — use coroutine versions
-
+// ❗ FIXED — use coroutine versions and OperationResult
 import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
@@ -23,12 +22,11 @@ import kotlinx.coroutines.withContext
 import org.bson.Document
 import org.bson.types.ObjectId
 
-
 class BloodRequestSchema(
     database: MongoDatabase
 ) {
 
-    // ❗ FIXED — coroutine collections
+    // ❗ coroutine collections
     private val bloodRequestCollection: MongoCollection<Document> =
         database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
 
@@ -62,7 +60,8 @@ class BloodRequestSchema(
                 .take(6)
                 .joinToString("")
 
-            val expiryAt = bloodRequestModel.date?.let { +it }
+            // fixed: remove stray '+' operator
+            val expiryAt = bloodRequestModel.date
 
             val newRequest = bloodRequestModel.copy(
                 id = null,
@@ -128,17 +127,23 @@ class BloodRequestSchema(
 
                 if (doc != null) {
                     OperationResult.Success(
-                        BloodRequestModel.fromDocument(doc),
-                        "Blood request found successfully"
+                        data = BloodRequestModel.fromDocument(doc),
+                        message = "Blood request found successfully",
+                        httpStatus = 200
                     )
                 } else {
                     OperationResult.Failure(
-                        "Blood request not found",
-                        "No blood request with ID: $bloodRequestId"
+                        message = "Blood request not found",
+                        httpStatus = 404,
+                        details = "No blood request with ID: $bloodRequestId"
                     )
                 }
             } catch (e: Exception) {
-                OperationResult.Failure("Failed to fetch blood request", e.message ?: "Unknown error")
+                OperationResult.Failure(
+                    message = "Failed to fetch blood request",
+                    httpStatus = 500,
+                    details = e.message ?: "Unknown error"
+                )
             }
         }
 
@@ -161,12 +166,18 @@ class BloodRequestSchema(
         withContext(Dispatchers.IO) {
 
             val doc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(bloodRequestId)))
-                .firstOrNull() ?: return@withContext OperationResult.Failure("Blood request not found")
+                .firstOrNull() ?: return@withContext OperationResult.Failure(
+                message = "Blood request not found",
+                httpStatus = 404
+            )
 
             val request = BloodRequestModel.fromDocument(doc)
 
             if (request.expiryAt != null && request.expiryAt < System.currentTimeMillis())
-                return@withContext OperationResult.Failure("This blood request has expired.")
+                return@withContext OperationResult.Failure(
+                    message = "This blood request has expired.",
+                    httpStatus = 410
+                )
 
             val update = Updates.addToSet("donorsResponded", donorId)
 
@@ -185,9 +196,16 @@ class BloodRequestSchema(
                     )
                 )
 
-                OperationResult.Success("Blood Donor added to request.")
+                OperationResult.Success(
+                    data = result.modifiedCount.toString(),
+                    message = "Blood Donor added to request.",
+                    httpStatus = 200
+                )
             } else {
-                OperationResult.Failure("Donor already responded or update failed")
+                OperationResult.Failure(
+                    message = "Donor already responded or update failed",
+                    httpStatus = 409
+                )
             }
         }
 
@@ -200,15 +218,24 @@ class BloodRequestSchema(
         withContext(Dispatchers.IO) {
 
             val doc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(bloodRequestId)))
-                .firstOrNull() ?: return@withContext OperationResult.Failure("Blood request not found")
+                .firstOrNull() ?: return@withContext OperationResult.Failure(
+                message = "Blood request not found",
+                httpStatus = 404
+            )
 
             val request = BloodRequestModel.fromDocument(doc)
 
             if (request.donationCode != code)
-                return@withContext OperationResult.Failure("Invalid donation code")
+                return@withContext OperationResult.Failure(
+                    message = "Invalid donation code",
+                    httpStatus = 400
+                )
 
             if (request.verifiedDonors?.any { it.donorId == donorId } == true)
-                return@withContext OperationResult.Failure("You are already verified")
+                return@withContext OperationResult.Failure(
+                    message = "You are already verified",
+                    httpStatus = 409
+                )
 
             val verifyDoc = Document(
                 mapOf(
@@ -237,9 +264,16 @@ class BloodRequestSchema(
                     )
                 )
 
-                OperationResult.Success("Donation successfully verified.")
+                OperationResult.Success(
+                    data = result.modifiedCount.toString(),
+                    message = "Donation successfully verified.",
+                    httpStatus = 200
+                )
             } else {
-                OperationResult.Failure("Failed to verify donor.")
+                OperationResult.Failure(
+                    message = "Failed to verify donor.",
+                    httpStatus = 500
+                )
             }
         }
 
@@ -251,7 +285,10 @@ class BloodRequestSchema(
     ): OperationResult<String> = withContext(Dispatchers.IO) {
 
         val doc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId)))
-            .firstOrNull() ?: return@withContext OperationResult.Failure("Blood request not found")
+            .firstOrNull() ?: return@withContext OperationResult.Failure(
+            message = "Blood request not found",
+            httpStatus = 404
+        )
 
         val claim = Document(
             mapOf(
@@ -271,8 +308,15 @@ class BloodRequestSchema(
         )
 
         if (result.modifiedCount > 0)
-            OperationResult.Success("Donation proof uploaded.")
-        else OperationResult.Failure("Failed to upload proof.")
+            OperationResult.Success(
+                data = result.modifiedCount.toString(),
+                message = "Donation proof uploaded.",
+                httpStatus = 200
+            )
+        else OperationResult.Failure(
+            message = "Failed to upload proof.",
+            httpStatus = 500
+        )
     }
 
 
@@ -282,7 +326,10 @@ class BloodRequestSchema(
     ): OperationResult<String> = withContext(Dispatchers.IO) {
 
         val doc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId)))
-            .firstOrNull() ?: return@withContext OperationResult.Failure("Blood request not found")
+            .firstOrNull() ?: return@withContext OperationResult.Failure(
+            message = "Blood request not found",
+            httpStatus = 404
+        )
 
         val verifyDoc = Document(
             mapOf(
@@ -315,9 +362,16 @@ class BloodRequestSchema(
                 )
             )
 
-            OperationResult.Success("Donation claim verified.")
+            OperationResult.Success(
+                data = result.modifiedCount.toString(),
+                message = "Donation claim verified.",
+                httpStatus = 200
+            )
         } else {
-            OperationResult.Failure("Failed to verify claim.")
+            OperationResult.Failure(
+                message = "Failed to verify claim.",
+                httpStatus = 500
+            )
         }
     }
 
@@ -326,7 +380,21 @@ class BloodRequestSchema(
         withContext(Dispatchers.IO) {
 
             val doc = bloodRequestCollection.find(Filters.eq("_id", ObjectId(requestId)))
-                .firstOrNull() ?: return@withContext OperationResult.Failure("Blood request not found")
+                .firstOrNull() ?: return@withContext OperationResult.Failure(
+                message = "Blood request not found",
+                httpStatus = 404
+            )
+
+            val model = BloodRequestModel.fromDocument(document = doc)
+
+            val verifiedList = model.verifiedDonors ?: emptyList()
+
+            if (verifiedList.isEmpty()) {
+                return@withContext OperationResult.Failure(
+                    message = "Cannot mark fulfilled. No verified donors found",
+                    httpStatus = 400
+                )
+            }
 
             val result = bloodRequestCollection.updateOne(
                 Filters.eq("_id", ObjectId(requestId)),
@@ -338,8 +406,15 @@ class BloodRequestSchema(
             )
 
             if (result.modifiedCount > 0)
-                OperationResult.Success("Marked fulfilled.")
-            else OperationResult.Failure("Failed to update.")
+                OperationResult.Success(
+                    data = requestId,
+                    message = "Marked fulfilled.",
+                    httpStatus = 200
+                )
+            else OperationResult.Failure(
+                message = "Failed to update.",
+                httpStatus = 500
+            )
         }
 
     // ------------------------------

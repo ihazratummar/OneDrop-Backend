@@ -48,7 +48,7 @@ object DiscordLogger {
 
                 val response = client.post(DISCORD_WEBHOOK_URL) {
                     contentType(ContentType.Application.Json)
-                    setBody(DiscordMessage("<@475357995367137282> \n$discordMessage"))
+                    setBody(DiscordMessage(discordMessage))
                 }
 
                 println("Discord log status: ${response.status}")

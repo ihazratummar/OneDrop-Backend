@@ -11,7 +11,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.cloud.FirestoreClient
 
-// ❗ FIXED — use coroutine MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 
@@ -32,8 +31,9 @@ class BloodDonorSchema(
     database: MongoDatabase
 ) {
 
-    // ❗ FIXED — now coroutine collection
-    private val donorCollection: MongoCollection<Document> = database.getCollection(USER_COLLECTION_NAME)
+    private val donorCollection: MongoCollection<Document> =
+        database.getCollection(USER_COLLECTION_NAME)
+
     private val bloodRequestCollection: MongoCollection<Document> =
         database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
 
@@ -45,7 +45,7 @@ class BloodDonorSchema(
             val donorById =
                 donorCollection.find(Filters.eq("_id", bloodDonorModel.userId)).firstOrNull()
 
-            // Check duplicates
+            // check duplicates
             val existingDonor = donorCollection.find().toList().firstOrNull { document ->
                 val email = document.getString("email")?.let { EncryptionUtil.decrypt(it) }
                 val contact = document.getString("contactNumber")?.let { EncryptionUtil.decrypt(it) }
@@ -118,11 +118,9 @@ class BloodDonorSchema(
 
     suspend fun deleteUserAccount(userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // 🔥 FIRESTORE DELETE — preserved
             val firestore = FirestoreClient.getFirestore()
             firestore.collection("users").document(userId).delete()
 
-            // 🔥 FIREBASE AUTH DELETE — preserved
             FirebaseAuth.getInstance().deleteUser(userId)
 
             val firebaseUserDeleted = try {
@@ -189,19 +187,28 @@ class BloodDonorSchema(
             }
         }
 
+    // ---------------------------------------------------------------------
+    // 🔥 UPDATED: OperationResult IMPLEMENTATION WITH httpStatus
+    // ---------------------------------------------------------------------
+
     suspend fun getMyBloodDonationList(userId: String): OperationResult<List<BloodRequestModel>> =
         withContext(Dispatchers.IO) {
 
             try {
                 val donor = donorCollection.find(Filters.eq("_id", userId)).firstOrNull()
                     ?: return@withContext OperationResult.Failure(
-                        "Donor not found",
-                        "No donor exists with ID: $userId"
+                        message = "Donor not found",
+                        httpStatus = 404
                     )
 
                 val donated = donor.getList("bloodDonated", String::class.java) ?: emptyList()
+
                 if (donated.isEmpty())
-                    return@withContext OperationResult.Success(emptyList(), "No history")
+                    return@withContext OperationResult.Success(
+                        data = emptyList(),
+                        message = "No history found",
+                        httpStatus = 200
+                    )
 
                 val objIds = donated.mapNotNull {
                     try { ObjectId(it) } catch (_: Exception) { null }
@@ -211,10 +218,18 @@ class BloodDonorSchema(
                     .map { BloodRequestModel.fromDocument(it) }
                     .toList()
 
-                OperationResult.Success(list, "Success")
+                OperationResult.Success(
+                    data = list,
+                    message = "Success",
+                    httpStatus = 200
+                )
 
             } catch (e: Exception) {
-                OperationResult.Failure("Failed to fetch history", e.message ?: "Unknown error")
+                OperationResult.Failure(
+                    message = "Failed to fetch donation history",
+                    httpStatus = 500,
+                    details = e.message ?: "Unknown error"
+                )
             }
         }
 }

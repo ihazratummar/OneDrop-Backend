@@ -12,7 +12,7 @@ data class WebSocketConnection(
     val userId: String,
     val subscriptions: ConcurrentHashMap<String, Subscription> = ConcurrentHashMap(),
     val messageQueue : Channel<String>,
-    val lastActivity : Long = System.currentTimeMillis()
+    var lastActivity : Long = System.currentTimeMillis()
 )
 
 data class Subscription(

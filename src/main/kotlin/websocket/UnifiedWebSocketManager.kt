@@ -27,10 +27,13 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
 
     // A thread-safe map to store all active WebSocket connections.
     private val connections = ConcurrentHashMap<String, WebSocketConnection>()
+
     // A thread-safe map to index subscriptions for fast lookups.
     private val subscriptionIndexMap = ConcurrentHashMap<String, MutableSet<String>>()
-    // A thread-safe counter for the number of active connections.
-    private val activeConnectionsCount = AtomicInteger(0)
+
+    // ✅ FIXED: Track connection IDs to prevent duplicate increment/decrement
+    private val activeConnectionIds = ConcurrentHashMap.newKeySet<String>()
+    private val activeConnections = AtomicInteger(0)
 
     // A channel to broadcast messages to all subscribed clients.
     private val broadcastMessageChannel = Channel<BroadcastMessage>(capacity = Channel.BUFFERED)
@@ -47,6 +50,9 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
     }
 
 
+    /**
+     * Internal broadcast message structure.
+     */
     private data class BroadcastMessage(
         val subscriptionKey: String,
         val message: String
@@ -58,7 +64,6 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
         launchHealthCheckWorker()
         launchMetricsLogger()
     }
-
 
     /**
      * Handles a new WebSocket connection.
@@ -80,7 +85,7 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
             DiscordLogger.log(
                 DiscordLogger.LogMessage(
                     level = "ERROR",
-                    message = "Connection error",
+                    message = "Connection error for user: $userId",
                     connectionId = connection.connectionId,
                     userId = userId,
                     error = e.message
@@ -100,6 +105,7 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
      */
     private suspend fun initializeConnection(session: WebSocketSession, userId: String): WebSocketConnection {
         val connectionId = generateConnectionId()
+
         val connection = WebSocketConnection(
             connectionId = connectionId,
             session = session,
@@ -108,11 +114,16 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
         )
 
         connections[connectionId] = connection
-        activeConnectionsCount.incrementAndGet()
+
+        // ✅ FIXED: Only increment if not already tracked
+        if (activeConnectionIds.add(connectionId)) {
+            activeConnections.incrementAndGet()
+        }
+
         DiscordLogger.log(
             DiscordLogger.LogMessage(
                 level = "INFO",
-                message = "Connection established",
+                message = "Connection established (Total: ${activeConnections.get()})",
                 connectionId = connectionId,
                 userId = userId
             )
@@ -124,7 +135,8 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                 type = "SYSTEM",
                 action = "connected",
                 resourceId = connectionId,
-                data = """{"userId":"$userId", "connectionId":"$connectionId"}"""
+                data = """{"userId":"$userId","connectionId":"$connectionId"}""",
+                timestamp = System.currentTimeMillis()
             )
         )
         return connection
@@ -169,7 +181,7 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                         processClientMessage(connection = connection, messageText = text)
 
                         // Update last activity to prevent the connection from being marked as stale.
-                        connection.lastActivity
+                        connection.lastActivity = System.currentTimeMillis()
                     }
 
                     is Frame.Close -> {
@@ -201,28 +213,10 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
     }
 
     /**
-     * Queues a message to be sent to a specific connection.
+     * Generates a unique connection ID.
      *
-     * @param connection The WebSocket connection.
-     * @param message The message to send.
+     * @return A unique connection ID.
      */
-    private suspend fun sendToConnectionQueue(connection: WebSocketConnection, message: ServerMessage) {
-        try {
-            val json = this.json.encodeToString(message)
-            connection.messageQueue.send(json)
-        } catch (e: Exception) {
-            DiscordLogger.log(
-                DiscordLogger.LogMessage(
-                    level = "ERROR",
-                    message = "Failed to queue message",
-                    connectionId = connection.connectionId,
-                    userId = connection.userId,
-                    error = e.message
-                )
-            )
-        }
-    }
-
     private fun generateConnectionId(): String {
         return "conn_${System.currentTimeMillis()}_${(1000..9999).random()}"
     }
@@ -251,7 +245,8 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                         }
                     } ?: throw InvalidMessageFormatException("Subscription type is required")
 
-                    val resourceId = message.resourceId ?: throw InvalidMessageFormatException("Resource ID is required")
+                    val resourceId = message.resourceId
+                        ?: throw InvalidMessageFormatException("Resource ID is required")
 
                     subscribe(connection = connection, type = type, resourceId = resourceId)
                 }
@@ -265,7 +260,9 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                         }
                     } ?: throw InvalidMessageFormatException("Subscription type is required")
 
-                    val resourceId = message.resourceId ?: throw InvalidMessageFormatException("Resource ID is required")
+                    val resourceId = message.resourceId
+                        ?: throw InvalidMessageFormatException("Resource ID is required")
+
                     unsubscribe(connection = connection, type = type, resourceId = resourceId)
                 }
 
@@ -276,12 +273,13 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                             type = "SYSTEM",
                             action = "pong",
                             resourceId = connection.connectionId,
-                            data = """{"timestamp":"${System.currentTimeMillis()}"}"""
+                            data = """{"timestamp":${System.currentTimeMillis()}}""",
+                            timestamp = System.currentTimeMillis()
                         )
                     )
                 }
 
-                "get_subscription" -> {
+                "get_subscriptions" -> {
                     val subs = connection.subscriptions.values.map {
                         mapOf("type" to it.type.name, "resourceId" to it.resourceId)
                     }
@@ -291,11 +289,33 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                             type = "SYSTEM",
                             action = "subscriptions",
                             resourceId = connection.connectionId,
-                            data = json.encodeToString(subs)
+                            data = json.encodeToString(subs),
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+
+                else -> {
+                    DiscordLogger.log(
+                        DiscordLogger.LogMessage(
+                            level = "WARN",
+                            message = "Unknown action: ${message.action}",
+                            connectionId = connection.connectionId,
+                            userId = connection.userId
                         )
                     )
                 }
             }
+        } catch (e: InvalidMessageFormatException) {
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "WARN",
+                    message = "Invalid message format",
+                    connectionId = connection.connectionId,
+                    userId = connection.userId,
+                    error = e.message
+                )
+            )
         } catch (e: Exception) {
             DiscordLogger.log(
                 DiscordLogger.LogMessage(
@@ -308,7 +328,6 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
             )
         }
     }
-
 
     /**
      * Subscribes a connection to a resource.
@@ -328,10 +347,11 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
             // Add the connection to the subscription index for fast lookups.
             subscriptionIndexMap.getOrPut(subscriptionKey) { ConcurrentHashMap.newKeySet() }
                 .add(connection.connectionId)
+
             DiscordLogger.log(
                 DiscordLogger.LogMessage(
                     level = "INFO",
-                    message = "Subscribed",
+                    message = "Subscribed to $subscriptionKey",
                     connectionId = connection.connectionId,
                     userId = connection.userId
                 )
@@ -342,13 +362,16 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                 connection = connection,
                 message = ServerMessage(
                     type = "SYSTEM",
-                    action = "subscribe",
+                    action = "subscribed",
                     resourceId = resourceId,
-                    data = """{"type":"${type.name}","resourceId":"$resourceId"}"""
+                    data = """{"type":"${type.name}","resourceId":"$resourceId"}""",
+                    timestamp = System.currentTimeMillis()
                 )
             )
         } catch (e: Exception) {
-            throw SubscriptionFailedException("Subscription failed for user ${connection.userId} to $type:$resourceId: ${e.message}")
+            throw SubscriptionFailedException(
+                "Subscription failed for user ${connection.userId} to $type:$resourceId: ${e.message}"
+            )
         }
     }
 
@@ -365,10 +388,11 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
 
         connection.subscriptions.remove(subscriptionKey)
         subscriptionIndexMap[subscriptionKey]?.remove(connection.connectionId)
+
         DiscordLogger.log(
             DiscordLogger.LogMessage(
                 level = "INFO",
-                message = "Unsubscribed",
+                message = "Unsubscribed from $subscriptionKey",
                 connectionId = connection.connectionId,
                 userId = connection.userId
             )
@@ -400,24 +424,25 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
             )
         )
 
-        broadcastMessageChannel.trySend(BroadcastMessage(subscriptionKey = subscriptionKey, message = message))
+        broadcastMessageChannel.trySend(
+            BroadcastMessage(subscriptionKey = subscriptionKey, message = message)
+        )
     }
 
     /**
      * Starts a background coroutine that processes broadcast messages from the broadcast channel.
      */
-    private fun launchBroadcastWorker(){
+    private fun launchBroadcastWorker() {
         CoroutineScope(Dispatchers.IO).launch {
-            for (broadcast in broadcastMessageChannel){
-                val connectionId = subscriptionIndexMap[broadcast.subscriptionKey]?: continue
+            for (broadcast in broadcastMessageChannel) {
+                val connectionIds = subscriptionIndexMap[broadcast.subscriptionKey] ?: continue
 
                 // Send the broadcast message to all subscribed connections in parallel.
-                connectionId.forEach { connectionId->
+                connectionIds.forEach { connectionId ->
                     connections[connectionId]?.let { connection ->
-
                         // Use a non-blocking send to the connection's message queue.
-                        val sent =  connection.messageQueue.trySend(broadcast.message)
-                        if (sent.isFailure){
+                        val sent = connection.messageQueue.trySend(broadcast.message)
+                        if (sent.isFailure) {
                             messagesDroppedCount.incrementAndGet()
                         }
                     }
@@ -425,7 +450,6 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
             }
         }
     }
-
 
     /**
      * Sends a message directly to a specific connection.
@@ -435,8 +459,8 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
      */
     private suspend fun sendServerMessageToConnection(connection: WebSocketConnection, message: ServerMessage) {
         try {
-            val json = this.json.encodeToString(message)
-            connection.messageQueue.send(json)
+            val jsonString = this.json.encodeToString(message)
+            connection.messageQueue.send(jsonString)
         } catch (e: Exception) {
             DiscordLogger.log(
                 DiscordLogger.LogMessage(
@@ -450,13 +474,12 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
         }
     }
 
-
     /**
      * Starts a background coroutine that periodically checks for and removes stale connections.
      */
-    private fun launchHealthCheckWorker(){
+    private fun launchHealthCheckWorker() {
         CoroutineScope(Dispatchers.IO).launch {
-            while (isActive){
+            while (isActive) {
                 delay(healthCheckInterval)
 
                 val now = System.currentTimeMillis()
@@ -478,13 +501,12 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
         }
     }
 
-
     /**
      * Starts a background coroutine that periodically logs WebSocket metrics.
      */
-    private fun launchMetricsLogger(){
+    private fun launchMetricsLogger() {
         CoroutineScope(Dispatchers.IO).launch {
-            while (isActive){
+            while (isActive) {
                 delay(metricsLogInterval)
 
                 DiscordLogger.log(
@@ -492,11 +514,11 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                         level = "INFO",
                         message = """
                     📊 WebSocket Metrics:
-                    - Active Coroutines : ${activeConnectionsCount.get()}
-                    - Total Subscriptions : ${subscriptionIndexMap.values.sumOf { it.size }}
-                    - Total Message Sent : ${messagesSentCount.get()}
-                    - Message Dropped : ${messagesDroppedCount.get()}
-                    - Unique Topics : ${subscriptionIndexMap.size}
+                    - Active Connections: ${activeConnections.get()}
+                    - Total Subscriptions: ${subscriptionIndexMap.values.sumOf { it.size }}
+                    - Messages Sent: ${messagesSentCount.get()}
+                    - Messages Dropped: ${messagesDroppedCount.get()}
+                    - Unique Topics: ${subscriptionIndexMap.size}
                 """.trimIndent()
                     )
                 )
@@ -504,16 +526,19 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
         }
     }
 
-
     /**
      * Cleans up the resources associated with a WebSocket connection.
      *
      * @param connection The WebSocket connection to clean up.
      */
     private fun cleanup(connection: WebSocketConnection) {
-
+        // Remove from connections map
         connections.remove(connection.connectionId)
-        activeConnectionsCount.decrementAndGet()
+
+        // ✅ FIXED: Only decrement if connection was actually tracked
+        if (activeConnectionIds.remove(connection.connectionId)) {
+            activeConnections.decrementAndGet()
+        }
 
         // Remove the connection from all subscription indexes.
         connection.subscriptions.values.forEach { subscription ->
@@ -532,7 +557,7 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
         DiscordLogger.log(
             DiscordLogger.LogMessage(
                 level = "INFO",
-                message = "Cleaned up connection",
+                message = "Cleaned up connection (Total: ${activeConnections.get()})",
                 connectionId = connection.connectionId,
                 userId = connection.userId
             )
@@ -543,11 +568,11 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
      * Gracefully shuts down the WebSocket manager.
      * This method closes all active connections and clears all data structures.
      */
-    suspend fun shutdown(){
+    suspend fun shutdown() {
         DiscordLogger.log(
             DiscordLogger.LogMessage(
                 level = "INFO",
-                message = "Shutting down WebSocket manager"
+                message = "Shutting down WebSocket manager (${activeConnections.get()} active connections)"
             )
         )
 
@@ -560,11 +585,17 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                         type = "SYSTEM",
                         action = "shutdown",
                         resourceId = connection.connectionId,
-                        data = """{"reason":"Server shutting down"}"""
+                        data = """{"reason":"Server shutting down"}""",
+                        timestamp = System.currentTimeMillis()
                     )
                 )
-                connection.session.close(CloseReason(code = CloseReason.Codes.GOING_AWAY, message = "Server Shutting Down"))
-            }catch (e: Exception){
+                connection.session.close(
+                    CloseReason(
+                        code = CloseReason.Codes.GOING_AWAY,
+                        message = "Server Shutting Down"
+                    )
+                )
+            } catch (e: Exception) {
                 DiscordLogger.log(
                     DiscordLogger.LogMessage(
                         level = "ERROR",
@@ -576,9 +607,18 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
                 )
             }
         }
+
         connections.clear()
         subscriptionIndexMap.clear()
+        activeConnectionIds.clear()
         broadcastMessageChannel.close()
+
+        DiscordLogger.log(
+            DiscordLogger.LogMessage(
+                level = "INFO",
+                message = "WebSocket manager shutdown complete"
+            )
+        )
     }
 
     /**
@@ -586,14 +626,13 @@ class UnifiedWebSocketManager(private val environment: ApplicationEnvironment) {
      *
      * @return A map of metrics.
      */
-    fun getMetrics() : Map<String, Any>{
+    fun getMetrics(): Map<String, Any> {
         return mapOf(
-            "activeConnections" to activeConnectionsCount.get(),
+            "activeConnections" to activeConnections.get(),
             "totalSubscriptions" to subscriptionIndexMap.values.sumOf { it.size },
-            "messageSent" to messagesSentCount.get(),
-            "messageDropped" to messagesDroppedCount.get(),
+            "messagesSent" to messagesSentCount.get(),
+            "messagesDropped" to messagesDroppedCount.get(),
             "uniqueTopics" to subscriptionIndexMap.size
         )
     }
-
 }

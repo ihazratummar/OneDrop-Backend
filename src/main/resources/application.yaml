@@ -8,5 +8,5 @@ ktor:
 websocket:
   channel_capacity: 1000
   stale_timeout: 300000 # 5 minutes in milliseconds
-  health_check_interval: 30000 # 30 seconds in milliseconds
-  metrics_log_interval: 60000 # 1 minute in milliseconds
+  health_check_interval: 60000 # 30 seconds in milliseconds
+  metrics_log_interval: 300000 # 5 minute in milliseconds
