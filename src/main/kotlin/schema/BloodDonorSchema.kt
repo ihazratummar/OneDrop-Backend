@@ -15,6 +15,7 @@ import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ import org.bson.Document
 import org.bson.types.ObjectId
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 class BloodDonorSchema(
     database: MongoDatabase
@@ -39,43 +41,81 @@ class BloodDonorSchema(
 
     private val options = UpdateOptions().upsert(true)
 
-    suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String =
-        withContext(Dispatchers.IO) {
+    @OptIn(ExperimentalTime::class)
+    suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String = withContext(Dispatchers.IO) {
 
-            val donorById =
-                donorCollection.find(Filters.eq("_id", bloodDonorModel.userId)).firstOrNull()
+        // Validate required fields
 
-            // check duplicates
-            val existingDonor = donorCollection.find().toList().firstOrNull { document ->
-                val email = document.getString("email")?.let { EncryptionUtil.decrypt(it) }
-                val contact = document.getString("contactNumber")?.let { EncryptionUtil.decrypt(it) }
-                val id = document.getString("_id")
+        require(!bloodDonorModel.userId.isNullOrBlank()) {"User ID required"}
+        require(!bloodDonorModel.email.isNullOrBlank()) {"Email is required"}
+        require(!bloodDonorModel.contactNumber.isNullOrBlank()) {"Contact Number is required"}
 
-                ((email == bloodDonorModel.email) || (contact == bloodDonorModel.contactNumber))
-                        && id != bloodDonorModel.userId
+        // Check for duplicate (email/contact) excluding current user
+        val duplicateFilter = Filters.and(
+            Filters.ne("_id", bloodDonorModel.userId),
+            Filters.or(
+                Filters.eq("email", EncryptionUtil.encrypt(bloodDonorModel.email)),
+                Filters.eq("contactNumber", EncryptionUtil.encrypt(bloodDonorModel.contactNumber)),
+            )
+        )
+
+        val existingDonor = donorCollection.find(duplicateFilter).firstOrNull()
+
+        if (existingDonor != null) {
+            val duplicateEmail = existingDonor.getString("email")
+                ?.let { EncryptionUtil.decrypt(it) } == bloodDonorModel.email
+            val duplicateContact = existingDonor.getString("contactNumber")
+                ?.let { EncryptionUtil.decrypt(it) } == bloodDonorModel.contactNumber
+
+            val field = when {
+                duplicateEmail && duplicateContact -> "email and contact number"
+                duplicateEmail -> "email"
+                else -> "contact number"
             }
 
-            if (existingDonor != null)
-                throw IllegalArgumentException("A donor with same email or contact number already exists.")
-
-            return@withContext if (donorById != null) {
-
-                val updateDoc = bloodDonorModel.toDocument().apply { remove("_id") }
-
-                val result = donorCollection.updateOne(
-                    Filters.eq("_id", bloodDonorModel.userId),
-                    Updates.set("", updateDoc)
-                )
-
-                if (result.modifiedCount > 0) bloodDonorModel.userId!!
-                else throw IllegalStateException("Failed to update donor")
-
-            } else {
-                val doc = bloodDonorModel.toDocument()
-                donorCollection.insertOne(doc)
-                doc["_id"].toString()
-            }
+            throw IllegalArgumentException("A donor with the same $field already exists")
         }
+
+        val existingDoc = donorCollection.find(Filters.eq("_id", bloodDonorModel.userId)).firstOrNull()
+        val documentToSave = if (existingDoc != null){
+            bloodDonorModel.copy(
+                createdAt = existingDoc.getLong("createdAt") ?: bloodDonorModel.createdAt,
+                updatedAt = Clock.System.now().toEpochMilliseconds(),
+                bloodDonated = existingDoc.getList("bloodDonated", String::class.java)?: bloodDonorModel.bloodDonated,
+                donorScore = existingDoc.getInteger("donorScore",0)
+            ).toDocument()
+        }else {
+            // Insert: User new document with current timestamp
+            bloodDonorModel.copy(
+                createdAt = Clock.System.now().toEpochMilliseconds(),
+                updatedAt = Clock.System.now().toEpochMilliseconds(),
+            ).toDocument()
+        }
+
+        val result = donorCollection.replaceOne(
+            Filters.eq("_id", bloodDonorModel.userId),
+            documentToSave,
+            ReplaceOptions().upsert(true)
+        )
+
+        if (result.matchedCount > 0){
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "INFO",
+                    message = "Donor update successfully : ${bloodDonorModel.userId} : ${bloodDonorModel.name}"
+                )
+            )
+        }else if (result.upsertedId != null){
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "INFO",
+                    message = "New donor created: ${bloodDonorModel.userId}"
+                )
+            )
+        }
+        return@withContext bloodDonorModel.userId!!
+
+    }
 
     suspend fun getAllDonors(): List<BloodDonorModel> = withContext(Dispatchers.IO) {
         donorCollection.find()
@@ -211,7 +251,11 @@ class BloodDonorSchema(
                     )
 
                 val objIds = donated.mapNotNull {
-                    try { ObjectId(it) } catch (_: Exception) { null }
+                    try {
+                        ObjectId(it)
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
 
                 val list = bloodRequestCollection.find(Filters.`in`("_id", objIds))
