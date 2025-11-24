@@ -3,7 +3,9 @@ package com.api.hazrat.util
 import io.github.cdimascio.dotenv.dotenv
 
 object AppSecret {
-    private val dotenv = dotenv()
+    private val dotenv = dotenv{
+        ignoreIfMissing = true
+    }
 
     val MONGO_DATABASE_NAME: String = dotenv["MONGO_DATABASE_NAME"]
     val USER_COLLECTION_NAME: String = dotenv["USER_COLLECTION_NAME"]
@@ -17,4 +19,5 @@ object AppSecret {
     val TAG_LENGTH: Int = dotenv["TAG_LENGTH"].toInt()
     val ONE_DROP_API_TOKEN: String = dotenv["ONE_DROP_API_TOKEN"]
     val DISCORD_WEBHOOK_URL: String = dotenv["DISCORD_WEBHOOK_URL"]
+    val FIREBASE_KEY_PATH : String = dotenv["FIREBASE_KEY_PATH"]
 }

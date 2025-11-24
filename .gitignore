@@ -39,3 +39,7 @@ out/
 
 /src/main/resources/firebase_service_account_key.json
 .env
+src/main/resources/onedrop_backend.json
+*src/main/resources/onedrop_backend.json
+onedrop_backend.json
+*/onedrop_backend.json

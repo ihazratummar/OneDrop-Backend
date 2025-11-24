@@ -6,6 +6,7 @@ import com.api.hazrat.mongdb.connectToMongoDB
 import com.api.hazrat.route.rootRouting
 import com.api.hazrat.route.websocketRoute
 import com.api.hazrat.serialization.configureSerialization
+import com.api.hazrat.util.AppSecret
 import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.AppSecret.ONE_DROP_API_TOKEN
@@ -20,6 +21,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.websocket.*
 import kotlinx.coroutines.runBlocking
+import java.io.FileInputStream
 import kotlin.time.Duration.Companion.seconds
 
 fun main(args: Array<String>) {
@@ -28,11 +30,11 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
 
+    val firebaseKeyPath = AppSecret.FIREBASE_KEY_PATH
+    val serviceAccount = FileInputStream(firebaseKeyPath)
 
-    val serviceAccountStreams = this::class.java.classLoader.getResourceAsStream("firebase_service_account_key.json")
-        ?: throw IllegalStateException("Firebase service account file not found!")
     val options = FirebaseOptions.builder()
-        .setCredentials(GoogleCredentials.fromStream(serviceAccountStreams))
+        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
         .build()
 
     FirebaseApp.initializeApp(options)

@@ -7,7 +7,15 @@ pipeline {
         NETWORK = "custom_bridge"
         STATIC_IP = "172.25.0.5"
         PORT = "9091"
+
+        // ENV file for generic env variables
         ENV_FILE = "/home/envs/onedropbackend.env"
+
+        // Firebase JSON file stored on host
+        FIREBASE_FILE_HOST = "/home/envs/firebase/onedrop_backend.json"
+
+        // Path visible inside the container
+        FIREBASE_FILE_CONTAINER = "/app/firebase/onedrop_backend.json"
     }
 
     stages {
@@ -18,13 +26,13 @@ pipeline {
                     $class: 'GitSCM',
                     branches: [[name: 'main']],
                     userRemoteConfigs: [[
-                        url: 'https://github.com/ihazratummar/OneDrop-Backend',
+                        url: 'https://github.com/ihazratummar/onedrop-backend.git',
                         credentialsId: 'github-creds'
                     ]]
                 ])
+                echo "✅ Code pulled successfully"
             }
         }
-
 
         stage('Build Docker Image') {
             steps {
@@ -32,7 +40,7 @@ pipeline {
                     sh """
                         docker build -t ${IMAGE} .
                     """
-                    echo "✅ Docker image built"
+                    echo "🐳 Docker image built successfully"
                 }
             }
         }
@@ -45,24 +53,30 @@ pipeline {
                             echo "Stopping old container..."
                             docker stop ${CONTAINER} || true
                             docker rm ${CONTAINER} || true
-                            echo "✅ Old container removed"
+                            echo "🗑️ Old container removed"
                         else
-                            echo "ℹ️ No existing container"
+                            echo "ℹ️ No existing container found"
                         fi
                     """
                 }
             }
         }
 
-        stage('Verify Environment File') {
+        stage('Verify Environment Files') {
             steps {
                 script {
                     sh """
                         if [ ! -f ${ENV_FILE} ]; then
-                            echo "❌ ENV file missing at ${ENV_FILE}"
+                            echo "❌ env file missing: ${ENV_FILE}"
                             exit 1
                         fi
-                        echo "✅ ENV file found"
+
+                        if [ ! -f ${FIREBASE_FILE_HOST} ]; then
+                            echo "❌ Firebase key missing: ${FIREBASE_FILE_HOST}"
+                            exit 1
+                        fi
+
+                        echo "✅ ENV & Firebase files verified"
                     """
                 }
             }
@@ -76,12 +90,13 @@ pipeline {
                         --name ${CONTAINER} \
                         --network ${NETWORK} \
                         --ip ${STATIC_IP} \
+                        -e FIREBASE_KEY_PATH="${FIREBASE_FILE_CONTAINER}" \
                         --env-file ${ENV_FILE} \
+                        -v ${FIREBASE_FILE_HOST}:${FIREBASE_FILE_CONTAINER} \
                         -p ${PORT}:${PORT} \
                         --restart unless-stopped \
                         ${IMAGE}
                     """
-                    echo "🚀 New container started"
                 }
             }
         }
@@ -91,10 +106,10 @@ pipeline {
                 script {
                     sh """
                         echo "⏳ Waiting for backend to start..."
-                        sleep 5
+                        sleep 6
 
                         if docker ps -q -f name=${CONTAINER} -f status=running; then
-                            echo "✅ Backend container running"
+                            echo "🔥 Backend is running"
                             docker logs --tail 20 ${CONTAINER}
                         else
                             echo "❌ Backend failed to start"
@@ -109,8 +124,8 @@ pipeline {
         stage('Cleanup Old Images') {
             steps {
                 sh """
-                    docker image prune -f || true
-                    echo "🧹 Cleanup done"
+                    docker image prune -f
+                    echo "🧹 Cleanup complete"
                 """
             }
         }
@@ -118,17 +133,14 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Backend deployed successfully!"
-            echo "Container: ${CONTAINER}"
-            echo "IP: ${STATIC_IP}"
-            echo "Port: ${PORT}"
+            echo "🎉 Deployment successful!"
         }
         failure {
-            echo "❌ Deployment failed! Fetching container logs..."
+            echo "❌ Deployment failed… showing logs"
             sh "docker logs ${CONTAINER} || true"
         }
         always {
-            echo "Pipeline complete."
+            echo "🚦 Pipeline finished"
         }
     }
 }
