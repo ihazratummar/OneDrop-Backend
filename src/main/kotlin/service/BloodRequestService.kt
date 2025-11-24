@@ -34,14 +34,14 @@ class BloodRequestService(
     suspend fun claimBloodRequest(bloodRequestId: String, bloodDonorId: String): OperationResult<String> {
         return bloodRequestSchema.claimBloodRequest(
             bloodRequestId = bloodRequestId,
-            bloodDonorId = bloodDonorId
+            donorId = bloodDonorId
         )
     }
 
     suspend fun verifyDonation(bloodRequestId: String, bloodDonorId: String, code: String): OperationResult<String> {
         return bloodRequestSchema.verifyDonation(
             bloodRequestId = bloodRequestId,
-            bloodDonorId = bloodDonorId,
+            donorId = bloodDonorId,
             code = code
         )
     }

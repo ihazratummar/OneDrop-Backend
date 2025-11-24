@@ -2,10 +2,10 @@ package com.api.hazrat
 
 // DecryptAndRewriteMigration.kt
 import com.api.hazrat.util.EncryptionUtil
-import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
-import com.api.hazrat.util.SecretConstant.MONGO_CONNECTION_URI
-import com.api.hazrat.util.SecretConstant.MONGO_DATABASE_NAME
-import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.MONGO_CONNECTION_URI
+import com.api.hazrat.util.AppSecret.MONGO_DATABASE_NAME
+import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.mongodb.client.MongoClients
 import com.mongodb.client.model.Filters.eq
 import org.bson.Document

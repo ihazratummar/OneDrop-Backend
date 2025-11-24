@@ -135,7 +135,7 @@ fun Application.bloodDonorRoutes(
                         when(success){
                             is OperationResult.Failure -> {
                                 call.respond(
-                                    call.respond(HttpStatusCode.NotFound, success.error.toString())
+                                    call.respond(HttpStatusCode.NotFound, success.message)
                                 )
                             }
                             is OperationResult.Success ->  {

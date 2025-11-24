@@ -5,17 +5,23 @@ import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.EncryptionUtil
-import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
-import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.cloud.FirestoreClient
-import com.mongodb.client.MongoCollection
-import com.mongodb.client.MongoDatabase
+
+import com.mongodb.kotlin.client.coroutine.MongoCollection
+import com.mongodb.kotlin.client.coroutine.MongoDatabase
+
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import org.bson.Document
 import org.bson.types.ObjectId
@@ -27,61 +33,88 @@ class BloodDonorSchema(
     database: MongoDatabase
 ) {
 
-    private var donorCollection: MongoCollection<Document>
-    private var bloodRequestCollection: MongoCollection<Document> = database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
+    private val donorCollection: MongoCollection<Document> =
+        database.getCollection(USER_COLLECTION_NAME)
 
-    init {
-        if (!database.listCollectionNames().contains(USER_COLLECTION_NAME)) {
-            database.createCollection(USER_COLLECTION_NAME)
-        }
-        donorCollection = database.getCollection(USER_COLLECTION_NAME)
-    }
+    private val bloodRequestCollection: MongoCollection<Document> =
+        database.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
 
     private val options = UpdateOptions().upsert(true)
 
+    @OptIn(ExperimentalTime::class)
     suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String = withContext(Dispatchers.IO) {
 
-        // First, check if donor exists by userId
-        val donorById = donorCollection.find(Document("_id", bloodDonorModel.userId)).firstOrNull()
+        // Validate required fields
 
-        // Check for duplicate email/contact (but exclude the current donor if updating)
-        val existingDonor = donorCollection.find().toList().firstOrNull { document ->
-            val storedEmail = document.getString("email")?.let { EncryptionUtil.decrypt(it) }
-            val storedContact = document.getString("contactNumber")?.let { EncryptionUtil.decrypt(it) }
-            val documentId = document.getString("_id")
+        require(!bloodDonorModel.userId.isNullOrBlank()) {"User ID required"}
+        require(!bloodDonorModel.email.isNullOrBlank()) {"Email is required"}
+        require(!bloodDonorModel.contactNumber.isNullOrBlank()) {"Contact Number is required"}
 
-            // Match email or contact, but NOT the same document we're updating
-            ((storedEmail == bloodDonorModel.email) || (storedContact == bloodDonorModel.contactNumber))
-                    && documentId != bloodDonorModel.userId
-        }
-
-        // If duplicate found (and it's not the same donor), throw error
-        if (existingDonor != null) {
-            throw IllegalArgumentException("A donor with same email or contact number already exists.")
-        }
-
-
-        return@withContext if (donorById != null) {
-            // Update existing donor
-            val updateDocument = bloodDonorModel.toDocument().apply {
-                remove("_id")
-            }
-
-            val result = donorCollection.updateOne(
-                Document("_id", bloodDonorModel.userId),
-                Document("\$set", updateDocument)
+        // Check for duplicate (email/contact) excluding current user
+        val duplicateFilter = Filters.and(
+            Filters.ne("_id", bloodDonorModel.userId),
+            Filters.or(
+                Filters.eq("email", EncryptionUtil.encrypt(bloodDonorModel.email)),
+                Filters.eq("contactNumber", EncryptionUtil.encrypt(bloodDonorModel.contactNumber)),
             )
-            if (result.modifiedCount > 0) {
-                bloodDonorModel.userId!!
-            } else {
-                throw IllegalStateException("Failed to update donor")
+        )
+
+        val existingDonor = donorCollection.find(duplicateFilter).firstOrNull()
+
+        if (existingDonor != null) {
+            val duplicateEmail = existingDonor.getString("email")
+                ?.let { EncryptionUtil.decrypt(it) } == bloodDonorModel.email
+            val duplicateContact = existingDonor.getString("contactNumber")
+                ?.let { EncryptionUtil.decrypt(it) } == bloodDonorModel.contactNumber
+
+            val field = when {
+                duplicateEmail && duplicateContact -> "email and contact number"
+                duplicateEmail -> "email"
+                else -> "contact number"
             }
-        } else {
-            // Create new donor
-            val doc = bloodDonorModel.toDocument()
-            donorCollection.insertOne(doc)
-            doc["_id"].toString()
+
+            throw IllegalArgumentException("A donor with the same $field already exists")
         }
+
+        val existingDoc = donorCollection.find(Filters.eq("_id", bloodDonorModel.userId)).firstOrNull()
+        val documentToSave = if (existingDoc != null){
+            bloodDonorModel.copy(
+                createdAt = existingDoc.getLong("createdAt") ?: bloodDonorModel.createdAt,
+                updatedAt = Clock.System.now().toEpochMilliseconds(),
+                bloodDonated = existingDoc.getList("bloodDonated", String::class.java)?: bloodDonorModel.bloodDonated,
+                donorScore = existingDoc.getInteger("donorScore",0)
+            ).toDocument()
+        }else {
+            // Insert: User new document with current timestamp
+            bloodDonorModel.copy(
+                createdAt = Clock.System.now().toEpochMilliseconds(),
+                updatedAt = Clock.System.now().toEpochMilliseconds(),
+            ).toDocument()
+        }
+
+        val result = donorCollection.replaceOne(
+            Filters.eq("_id", bloodDonorModel.userId),
+            documentToSave,
+            ReplaceOptions().upsert(true)
+        )
+
+        if (result.matchedCount > 0){
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "INFO",
+                    message = "Donor update successfully : ${bloodDonorModel.userId} : ${bloodDonorModel.name}"
+                )
+            )
+        }else if (result.upsertedId != null){
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "INFO",
+                    message = "New donor created: ${bloodDonorModel.userId}"
+                )
+            )
+        }
+        return@withContext bloodDonorModel.userId!!
+
     }
 
     suspend fun getAllDonors(): List<BloodDonorModel> = withContext(Dispatchers.IO) {
@@ -90,157 +123,157 @@ class BloodDonorSchema(
             .toList()
     }
 
-
     suspend fun getDonorProfile(userId: String): BloodDonorModel = withContext(Dispatchers.IO) {
-        val donorDocument = donorCollection.find(Document("_id", userId)).firstOrNull()
+        donorCollection.find(Filters.eq("_id", userId))
+            .firstOrNull()
+            ?.let { BloodDonorModel.fromDocument(it) }
             ?: throw IllegalArgumentException("No donor found with this id")
-
-        BloodDonorModel.fromDocument(donorDocument)
     }
 
     suspend fun isBloodDonorExist(userId: String): Boolean = withContext(Dispatchers.IO) {
-        donorCollection.find(Document("_id", userId)).firstOrNull() != null
+        donorCollection.find(Filters.eq("_id", userId)).firstOrNull() != null
     }
 
-    suspend fun toggleAvailability(userId: String, key: String): Boolean = withContext(Dispatchers.IO) {
-        val donorDocument = donorCollection.find(Document("_id", userId)).firstOrNull()
-            ?: throw IllegalArgumentException("No Donor Found")
+    suspend fun toggleAvailability(userId: String, key: String): Boolean =
+        withContext(Dispatchers.IO) {
 
-        val currentAvailability = donorDocument.getBoolean(key)?: false
-        val updateAvailability = !currentAvailability
+            val donor = donorCollection.find(Filters.eq("_id", userId)).firstOrNull()
+                ?: throw IllegalArgumentException("No Donor Found")
 
-        val result = donorCollection.updateOne(
-            Document("_id", userId),
-            Document("\$set", Document(key, updateAvailability))
-        )
+            val current = donor.getBoolean(key) ?: false
+            val updated = !current
 
-        if (result.modifiedCount > 0) updateAvailability else throw IllegalStateException("Failed to update availability")
-    }
+            val result = donorCollection.updateOne(
+                Filters.eq("_id", userId),
+                Updates.set(key, updated)
+            )
 
-    suspend fun deleteBloodDonor(userId: String) : Boolean = withContext(Dispatchers.IO) {
-        val donorDocument = donorCollection.deleteOne(Document("_id", userId))
-        if (donorDocument.deletedCount > 0) true else throw  IllegalStateException("Failed to delete donor account")
+            if (result.modifiedCount > 0) updated
+            else throw IllegalStateException("Failed to update availability")
+        }
+
+    suspend fun deleteBloodDonor(userId: String): Boolean = withContext(Dispatchers.IO) {
+        donorCollection.deleteOne(Filters.eq("_id", userId)).deletedCount > 0
     }
 
     suspend fun deleteUserAccount(userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            val firestore = FirestoreClient.getFirestore()
+            firestore.collection("users").document(userId).delete()
 
-            // Delete user data from Firestore
-            val fireStore = FirestoreClient.getFirestore()
-            val collection = fireStore.collection("users").document(userId)
-
-            val isDeleted = collection.delete().isDone
-            if (isDeleted){
-                println("User data deleted from Firestore")
-            }else{
-                println("Failed to delete user data from Firestore")
-            }
-
-            // Attempt to delete Firebase user
             FirebaseAuth.getInstance().deleteUser(userId)
 
-            // Check if user was deleted successfully from Firebase (if no exception is thrown)
             val firebaseUserDeleted = try {
-                FirebaseAuth.getInstance().getUser(userId) // This will throw if the user doesn't exist
-                false // User still exists, so deletion failed
+                FirebaseAuth.getInstance().getUser(userId)
+                false
             } catch (e: FirebaseAuthException) {
-                DiscordLogger.log("User with ID `$userId` deleted from Firebase. ${e.localizedMessage}" )
-                true // User not found, deletion was successful
+                DiscordLogger.log(
+                    DiscordLogger.LogMessage(
+                        level = "INFO",
+                        message = "User $userId deleted from Firebase: ${e.localizedMessage}"
+                    )
+                )
+                true
             }
 
-            // Attempt to delete the donor profile from MongoDB
-            val donorDocument = donorCollection.deleteOne(Document("_id", userId))
-            val donorDeleted = donorDocument.deletedCount > 0
+            val donorDeleted =
+                donorCollection.deleteOne(Filters.eq("_id", userId)).deletedCount > 0
 
-            // Attempt to delete the blood request data from MongoDB
-            val bloodRequestDocument = bloodRequestCollection.deleteMany(Document("userId", userId))
-            val bloodRequestDeleted = bloodRequestDocument.deletedCount > 0 || bloodRequestDocument.deletedCount.toInt() == 0
+            val bloodRequestDeleted =
+                bloodRequestCollection.deleteMany(Filters.eq("userId", userId)).deletedCount >= 0
 
+            donorDeleted || bloodRequestDeleted || firebaseUserDeleted
 
-
-            // Return true if all deletions were successful
-            return@withContext  donorDeleted || bloodRequestDeleted || firebaseUserDeleted
         } catch (e: Exception) {
             e.printStackTrace()
-            return@withContext  false // Return false if any error occurs
+            false
         }
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun resetBloodDonorScore(userId: String): Boolean = withContext(Dispatchers.IO){
+    suspend fun resetBloodDonorScore(userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val result = donorCollection.updateOne(
+            donorCollection.updateOne(
                 Filters.eq("_id", userId),
                 Updates.combine(
                     Updates.set("donorScore", 0),
                     Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
                 )
-            )
-            return@withContext result.modifiedCount > 0
-        }catch (e: Exception){
-            return@withContext  false
+            ).modifiedCount > 0
+        } catch (_: Exception) {
+            false
         }
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun updateNotificationScope(userId: String, notificationScope: String) : Boolean = withContext(Dispatchers.IO){
-        try {
-            val result = donorCollection.updateOne(
-                Filters.eq("_id", userId),
-                Updates.combine(
-                    Updates.set("notificationScope", notificationScope),
-                    Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
+    suspend fun updateNotificationScope(userId: String, notificationScope: String): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                donorCollection.updateOne(
+                    Filters.eq("_id", userId),
+                    Updates.combine(
+                        Updates.set("notificationScope", notificationScope),
+                        Updates.set("updatedAt", Clock.System.now().toEpochMilliseconds())
+                    )
+                ).modifiedCount > 0
+            } catch (e: Exception) {
+                DiscordLogger.log(
+                    DiscordLogger.LogMessage(
+                        level = "ERROR",
+                        message = "Failed to update scope for $userId: ${e.localizedMessage}"
+                    )
                 )
-            )
-            return@withContext result.modifiedCount > 0
-        }catch (e: Exception){
-            DiscordLogger.log("Failed to update notification scope of $userId and the error is ${e.localizedMessage}")
-            return@withContext false
+                false
+            }
         }
-    }
 
-    suspend fun getMyBloodDonationList(userId: String) : OperationResult<List<BloodRequestModel>> = withContext(Dispatchers.IO) {
-        try {
-            val donorDocument = donorCollection.find(
-                Filters.eq("_id", userId)
-            ).firstOrNull()
-            if (donorDocument == null){
-                return@withContext OperationResult.Failure(
-                    message = "Donor not found",
-                    error = "No donor exists with ID: $userId"
-                )
-            }
-            val bloodDonatedIds = donorDocument.getList("bloodDonated", String::class.java)?: emptyList()
-            if (bloodDonatedIds.isEmpty()){
-                return@withContext OperationResult.Success(
-                    data = emptyList(),
-                    message = "No blood donation history found"
-                )
-            }
-            val objectIds = bloodDonatedIds.mapNotNull {
-                try {
-                    ObjectId(it)
-                }catch (e: Exception){
-                    null
+    // ---------------------------------------------------------------------
+    // 🔥 UPDATED: OperationResult IMPLEMENTATION WITH httpStatus
+    // ---------------------------------------------------------------------
+
+    suspend fun getMyBloodDonationList(userId: String): OperationResult<List<BloodRequestModel>> =
+        withContext(Dispatchers.IO) {
+
+            try {
+                val donor = donorCollection.find(Filters.eq("_id", userId)).firstOrNull()
+                    ?: return@withContext OperationResult.Failure(
+                        message = "Donor not found",
+                        httpStatus = 404
+                    )
+
+                val donated = donor.getList("bloodDonated", String::class.java) ?: emptyList()
+
+                if (donated.isEmpty())
+                    return@withContext OperationResult.Success(
+                        data = emptyList(),
+                        message = "No history found",
+                        httpStatus = 200
+                    )
+
+                val objIds = donated.mapNotNull {
+                    try {
+                        ObjectId(it)
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
+
+                val list = bloodRequestCollection.find(Filters.`in`("_id", objIds))
+                    .map { BloodRequestModel.fromDocument(it) }
+                    .toList()
+
+                OperationResult.Success(
+                    data = list,
+                    message = "Success",
+                    httpStatus = 200
+                )
+
+            } catch (e: Exception) {
+                OperationResult.Failure(
+                    message = "Failed to fetch donation history",
+                    httpStatus = 500,
+                    details = e.message ?: "Unknown error"
+                )
             }
-            val bloodRequests = bloodRequestCollection.find(
-                Filters.`in`("_id", objectIds)
-            ).map {
-                BloodRequestModel.fromDocument(it)
-            }.toList()
-
-            OperationResult.Success(
-                data = bloodRequests,
-                message = "Blood donation history retrieved successfully"
-            )
-        }catch (e: Exception){
-            OperationResult.Failure(
-                message = "Failed to fetch blood donation history",
-                error = e.message ?: "Unknown error occurred"
-            )
         }
-
-    }
-
 }

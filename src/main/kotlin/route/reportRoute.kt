@@ -37,7 +37,12 @@ fun Application.reportRoutes(
                         val reportId = reportService.createOrUpdateReport(reportModel)
                         call.respond(HttpStatusCode.Created, "Report created with ID: $reportId")
                     }catch (e: Exception){
-                        DiscordLogger.log("❌ Exception in POST /create-report: ${e.message} | IP: ${call.request.origin.remoteHost}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "ERROR",
+                                message = "Exception in POST /create-report: ${e.message} | IP: ${call.request.origin.remoteHost}"
+                            )
+                        )
                         call.respond(HttpStatusCode.InternalServerError, "Something went wrong")
                     }
                 }
@@ -53,11 +58,21 @@ fun Application.reportRoutes(
                         if (reports.isNotEmpty()) {
                             call.respond(HttpStatusCode.OK, reports)
                         } else {
-                            DiscordLogger.log("📭 No reports found from ${call.request.origin.remoteHost} for getting all reports " )
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "INFO",
+                                    message = "No reports found from ${call.request.origin.remoteHost} for getting all reports "
+                                )
+                            )
                             call.respond(HttpStatusCode.NoContent, "No reports found")
                         }
                     }catch (e: Exception){
-                        DiscordLogger.log("❌ Exception in GET /all-reports: ${e.message} | IP: ${call.request.origin.remoteHost}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "ERROR",
+                                message = "Exception in GET /all-reports: ${e.message} | IP: ${call.request.origin.remoteHost}"
+                            )
+                        )
                         call.respond(HttpStatusCode.InternalServerError, "Something went wrong")
                     }
                 }
@@ -67,7 +82,12 @@ fun Application.reportRoutes(
                     try {
                         val reportId = call.request.queryParameters["reportId"]
                         if (reportId.isNullOrBlank()) {
-                            DiscordLogger.log("⚠️ Missing `reportId` in GET /report from ${call.request.origin.remoteHost}")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "WARN",
+                                    message = "Missing `reportId` in GET /report from ${call.request.origin.remoteHost}"
+                                )
+                            )
                             return@get call.respond(HttpStatusCode.BadRequest, "Missing Report ID")
                         }
 
@@ -75,11 +95,21 @@ fun Application.reportRoutes(
                         if (report != null) {
                             call.respond(HttpStatusCode.OK, report)
                         } else {
-                            DiscordLogger.log("📭 Report not found for ID `$reportId` from ${call.request.origin.remoteHost} for getting report by ID")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "INFO",
+                                    message = "Report not found for ID `$reportId` from ${call.request.origin.remoteHost} for getting report by ID"
+                                )
+                            )
                             call.respond(HttpStatusCode.NotFound, "Report not found")
                         }
                     } catch (e: Exception) {
-                        DiscordLogger.log("❌ Exception in GET /report: ${e.message} | IP: ${call.request.origin.remoteHost}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "ERROR",
+                                message = "Exception in GET /report: ${e.message} | IP: ${call.request.origin.remoteHost}"
+                            )
+                        )
                         call.respond(HttpStatusCode.InternalServerError, "Something went wrong")
                     }
                 }
@@ -93,18 +123,33 @@ fun Application.reportRoutes(
                     try {
                         val userId = call.request.queryParameters["reporterId"]
                         if (userId.isNullOrBlank()){
-                            DiscordLogger.log("⚠️ Missing `reporterId` in GET /user from ${call.request.origin.remoteHost}")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "WARN",
+                                    message = "Missing `reporterId` in GET /user from ${call.request.origin.remoteHost}"
+                                )
+                            )
                             return@get call.respond(HttpStatusCode.BadRequest, "Missing User ID")
                         }
                         val reports = reportService.getAllReportsByUserId(userId)
                         if (reports.isNotEmpty()) {
                             call.respond(HttpStatusCode.OK, reports)
                         } else {
-                            DiscordLogger.log("📭 No reports found for user ID `$userId` from ${call.request.origin.remoteHost} for getting reports")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "INFO",
+                                    message = "No reports found for user ID `$userId` from ${call.request.origin.remoteHost} for getting reports"
+                                )
+                            )
                             call.respond(HttpStatusCode.NoContent, "No reports found for this user")
                         }
                     }catch (e: Exception){
-                        DiscordLogger.log("❌ Exception in GET /user: ${e.message} | IP: ${call.request.origin.remoteHost}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "ERROR",
+                                message = "Exception in GET /user: ${e.message} | IP: ${call.request.origin.remoteHost}"
+                            )
+                        )
                         call.respond(HttpStatusCode.InternalServerError, "Something went wrong")
                     }
 
@@ -116,7 +161,12 @@ fun Application.reportRoutes(
                     try {
                         val reportId = call.request.queryParameters["reportId"]
                         if (reportId.isNullOrBlank()) {
-                            DiscordLogger.log("⚠️ Missing `reportId` in PATCH /status from ${call.request.origin.remoteHost}")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "WARN",
+                                    message = "Missing `reportId` in PATCH /status from ${call.request.origin.remoteHost}"
+                                )
+                            )
                             return@patch call.respond(HttpStatusCode.BadRequest, "Missing Report ID")
                         }
                         val requestBody = call.receive<ReportStatusUpdateRequest>()
@@ -124,11 +174,21 @@ fun Application.reportRoutes(
                         if (isUpdated) {
                             call.respond(HttpStatusCode.OK, "Report status updated successfully")
                         } else {
-                            DiscordLogger.log("📭 Report not found for ID `$reportId` from ${call.request.origin.remoteHost} for updating status")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "INFO",
+                                    message = "Report not found for ID `$reportId` from ${call.request.origin.remoteHost} for updating status"
+                                )
+                            )
                             call.respond(HttpStatusCode.NotFound, "Report not found")
                         }
                     }catch (e: Exception){
-                        DiscordLogger.log("❌ Exception in PATCH /status: ${e.message} | IP: ${call.request.origin.remoteHost}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "ERROR",
+                                message = "Exception in PATCH /status: ${e.message} | IP: ${call.request.origin.remoteHost}"
+                            )
+                        )
                         call.respond(HttpStatusCode.InternalServerError, "Something went wrong")
                     }
                 }
@@ -142,18 +202,33 @@ fun Application.reportRoutes(
                         val reportId = call.request.queryParameters["reportId"]
 
                         if (reportId.isNullOrBlank()) {
-                            DiscordLogger.log("⚠️ Missing `reportId` in DELETE /delete from ${call.request.origin.remoteHost}")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "WARN",
+                                    message = "Missing `reportId` in DELETE /delete from ${call.request.origin.remoteHost}"
+                                )
+                            )
                             return@delete call.respond(HttpStatusCode.BadRequest, "Missing Report ID")
                         }
                         val isDeleted = reportService.deleteReport(reportId)
                         if (isDeleted) {
                             call.respond(HttpStatusCode.OK, "Report deleted successfully")
                         } else {
-                            DiscordLogger.log("📭 Report not found for ID `$reportId` from ${call.request.origin.remoteHost} for deleting")
+                            DiscordLogger.log(
+                                DiscordLogger.LogMessage(
+                                    level = "INFO",
+                                    message = "Report not found for ID `$reportId` from ${call.request.origin.remoteHost} for deleting"
+                                )
+                            )
                             call.respond(HttpStatusCode.NotFound, "Report not found")
                         }
                     }catch (e: Exception){
-                        DiscordLogger.log("❌ Exception in DELETE /delete: ${e.message} | IP: ${call.request.origin.remoteHost}")
+                        DiscordLogger.log(
+                            DiscordLogger.LogMessage(
+                                level = "ERROR",
+                                message = "Exception in DELETE /delete: ${e.message} | IP: ${call.request.origin.remoteHost}"
+                            )
+                        )
                         call.respond(HttpStatusCode.InternalServerError, "Something went wrong")
                     }
                 }

@@ -115,12 +115,15 @@ fun Application.bloodRequestRoutes(
                             bloodDonorId = body["donorId"] ?: error("Missing donor id")
                         )
 
-                        when (success) {
-                            is OperationResult.Success -> {
-                                val message = success.message
-                                call.respond(HttpStatusCode.OK, message.toString())
-                            }
-                            is OperationResult.Failure -> call.respond(HttpStatusCode.BadRequest, success.message)
+                        when(success){
+                            is OperationResult.Failure -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
+                            is OperationResult.Success -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
                         }
                     } catch (e: Exception) {
                         println("Error: ${e.localizedMessage}")
@@ -136,8 +139,14 @@ fun Application.bloodRequestRoutes(
                             code = body["code"] ?: error("Missing code")
                         )
                         when(success){
-                            is OperationResult.Failure -> call.respond(HttpStatusCode.OK, success)
-                            is OperationResult.Success -> call.respond(HttpStatusCode.OK, success)
+                            is OperationResult.Failure -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
+                            is OperationResult.Success -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
                         }
 
                     }catch (e: Exception) {
@@ -155,8 +164,14 @@ fun Application.bloodRequestRoutes(
                             proofUrl = body["proofUrl"] ?: error("Missing proofUrl")
                         )
                         when(success){
-                            is OperationResult.Failure -> call.respond(HttpStatusCode.OK, success)
-                            is OperationResult.Success -> call.respond(HttpStatusCode.OK, success)
+                            is OperationResult.Failure -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
+                            is OperationResult.Success -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
                         }
 
                     }catch (e: Exception) {
@@ -173,9 +188,15 @@ fun Application.bloodRequestRoutes(
                             donorId = body["donorId"] ?: error("Missing donorId")
                         )
 
-                        when (success) {
-                            is OperationResult.Failure -> call.respond(HttpStatusCode.OK, success)
-                            is OperationResult.Success -> call.respond(HttpStatusCode.OK, success)
+                        when(success){
+                            is OperationResult.Failure -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
+                            is OperationResult.Success -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
                         }
                     } catch (e: Exception) {
                         println("Error: ${e.localizedMessage}")
@@ -191,8 +212,14 @@ fun Application.bloodRequestRoutes(
                             requestId = body["requestId"] ?: error("Missing requestId")
                         )
                         when(success){
-                            is OperationResult.Failure -> call.respond(HttpStatusCode.OK, success)
-                            is OperationResult.Success -> call.respond(HttpStatusCode.OK, success)
+                            is OperationResult.Failure -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
+                            is OperationResult.Success -> call.respond(
+                                status = HttpStatusCode.fromValue(success.httpStatus),
+                                message = success
+                            )
                         }
 
                     }catch (e: Exception) {
@@ -204,3 +231,4 @@ fun Application.bloodRequestRoutes(
         }
     }
 }
+

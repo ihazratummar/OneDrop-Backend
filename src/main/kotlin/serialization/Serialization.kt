@@ -29,7 +29,12 @@ fun Application.configureSerialization() {
             call.respond(HttpStatusCode.Conflict, cause.localizedMessage ?:"Conflict: Illegal argument.")
         }
         exception<kotlinx.serialization.SerializationException>{call, cause ->
-            DiscordLogger.log("❌ Serialization error: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}")
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "ERROR",
+                    message = "Serialization error: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}"
+                )
+            )
             call.respond(HttpStatusCode.BadRequest, "Invalid request body format ${cause.localizedMessage}")
         }
 
@@ -37,11 +42,21 @@ fun Application.configureSerialization() {
             call.respond(HttpStatusCode.BadRequest, "Invalid data provided.")
         }
         exception<com.mongodb.MongoCommandException> { call, cause ->
-            DiscordLogger.log("❌ MongoDB command error: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}")
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "ERROR",
+                    message = "MongoDB command error: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}"
+                )
+            )
             call.respond(HttpStatusCode.Conflict, "Database error: ${cause.errorMessage ?: "Unknown issue."}")
         }
         exception<com.mongodb.MongoException> { call, _ ->
-            DiscordLogger.log("❌ MongoDB error: ${call.request.httpMethod.value} $ | IP: ${call.request.origin.remoteHost}")
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "ERROR",
+                    message = "MongoDB error: ${call.request.httpMethod.value} $ | IP: ${call.request.origin.remoteHost}"
+                )
+            )
             call.respond(HttpStatusCode.ServiceUnavailable, "Database connection error. Please try again later.")
         }
         exception<Exception> { call, cause ->
@@ -51,7 +66,12 @@ fun Application.configureSerialization() {
             call.respond(HttpStatusCode.InternalServerError, "An unexpected error occurred: ${cause.localizedMessage}.")
         }
         status(HttpStatusCode.Unauthorized) { call, code ->
-            DiscordLogger.log("🔐 Unauthorized access: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}")
+            DiscordLogger.log(
+                DiscordLogger.LogMessage(
+                    level = "WARN",
+                    message = "Unauthorized access: ${call.request.httpMethod.value} ${call.request.uri} | IP: ${call.request.origin.remoteHost}"
+                )
+            )
             call.respond(HttpStatusCode.Unauthorized, "$code: Unauthorized access. Please check your credentials.")
         }
     }
