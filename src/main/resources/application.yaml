@@ -1,11 +1,12 @@
 ktor:
-    development: true
     application:
         modules:
             - com.api.hazrat.ApplicationKt.module
     deployment:
-        watch:
-            - classes
-            - resources
-        port: 9091
-        host : "0.0.0.0"
+        port: 8080
+
+websocket:
+  channel_capacity: 1000
+  stale_timeout: 300000 # 5 minutes in milliseconds
+  health_check_interval: 60000 # 30 seconds in milliseconds
+  metrics_log_interval: 300000 # 5 minute in milliseconds

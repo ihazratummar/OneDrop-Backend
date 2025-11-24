@@ -1,10 +1,10 @@
 package com.api.hazrat.util
 
-import com.api.hazrat.util.SecretConstant.ALGORITHM
-import com.api.hazrat.util.SecretConstant.IV_SIZE
-import com.api.hazrat.util.SecretConstant.KEY_BYTES
-import com.api.hazrat.util.SecretConstant.TAG_LENGTH
-import com.api.hazrat.util.SecretConstant.TRANSFORMATION
+import com.api.hazrat.util.AppSecret.ALGORITHM
+import com.api.hazrat.util.AppSecret.IV_SIZE
+import com.api.hazrat.util.AppSecret.KEY_BYTES
+import com.api.hazrat.util.AppSecret.TAG_LENGTH
+import com.api.hazrat.util.AppSecret.TRANSFORMATION
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.*
