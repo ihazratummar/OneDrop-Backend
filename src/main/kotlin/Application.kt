@@ -7,8 +7,8 @@ import com.api.hazrat.route.rootRouting
 import com.api.hazrat.route.websocketRoute
 import com.api.hazrat.serialization.configureSerialization
 import com.api.hazrat.util.DiscordLogger
-import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
-import com.api.hazrat.util.SecretConstant.ONE_DROP_API_TOKEN
+import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.ONE_DROP_API_TOKEN
 import com.api.hazrat.websocket.UnifiedWebSocketManager
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp

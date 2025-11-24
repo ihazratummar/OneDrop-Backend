@@ -2,7 +2,7 @@ package com.api.hazrat.mongdb
 
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.DiscordLogger
-import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.websocket.SubscriptionType
 import com.api.hazrat.websocket.UnifiedWebSocketManager
 import com.mongodb.client.model.changestream.FullDocument

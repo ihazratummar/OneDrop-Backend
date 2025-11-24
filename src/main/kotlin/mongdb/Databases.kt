@@ -10,9 +10,9 @@ import com.api.hazrat.schema.ReportSchema
 import com.api.hazrat.service.BloodDonorService
 import com.api.hazrat.service.BloodRequestService
 import com.api.hazrat.service.ReportService
-import com.api.hazrat.util.SecretConstant.MONGO_CONNECTION_URI
-import com.api.hazrat.util.SecretConstant.MONGO_DATABASE_NAME
-import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.MONGO_CONNECTION_URI
+import com.api.hazrat.util.AppSecret.MONGO_DATABASE_NAME
+import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import io.ktor.server.application.*

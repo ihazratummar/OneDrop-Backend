@@ -3,7 +3,7 @@ package com.api.hazrat.schema
 import com.api.hazrat.model.ReportModel
 import com.api.hazrat.model.ReportStatus
 import com.api.hazrat.util.DiscordLogger
-import com.api.hazrat.util.SecretConstant.REPORT_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.REPORT_COLLECTION_NAME
 
 // ✅ FIXED: Coroutine Mongo imports
 import com.mongodb.kotlin.client.coroutine.MongoCollection

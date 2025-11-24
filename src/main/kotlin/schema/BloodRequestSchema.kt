@@ -3,8 +3,8 @@ package com.api.hazrat.schema
 // ❗ FIXED — use coroutine versions and OperationResult
 import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodRequestModel
-import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
-import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.mongodb.client.model.Filters

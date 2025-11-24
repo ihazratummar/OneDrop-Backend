@@ -12,6 +12,7 @@ application {
 }
 
 dependencies {
+    implementation(libs.dotenv.kotlin)
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.status.pages)

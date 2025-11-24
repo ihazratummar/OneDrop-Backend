@@ -1,6 +1,6 @@
 package com.api.hazrat.util
 
-import com.api.hazrat.util.SecretConstant.DISCORD_WEBHOOK_URL
+import com.api.hazrat.util.AppSecret.DISCORD_WEBHOOK_URL
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*

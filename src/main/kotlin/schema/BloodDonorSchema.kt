@@ -5,8 +5,8 @@ import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.EncryptionUtil
-import com.api.hazrat.util.SecretConstant.BLOOD_REQUEST_COLLECTION_NAME
-import com.api.hazrat.util.SecretConstant.USER_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
+import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.cloud.FirestoreClient
