@@ -30,11 +30,11 @@ class BloodRequestExpiryJob (
             while (isActive){
                 try {
                     val now = System.currentTimeMillis()
-
+                    val gracePeriodMillis = TimeUnit.HOURS.toMillis(24)
                     //Filter all requests that are Pending and past expiry
                     val expiredFilter = Filters.and(
                         Filters.eq("bloodRequestStatus", "Active"),
-                        Filters.lt("expiryAt", now)
+                        Filters.lt("expiryAt", now - gracePeriodMillis)
                     )
 
                     val update = Updates.combine(
