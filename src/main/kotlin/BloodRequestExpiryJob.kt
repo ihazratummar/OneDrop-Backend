@@ -33,12 +33,12 @@ class BloodRequestExpiryJob (
 
                     //Filter all requests that are Pending and past expiry
                     val expiredFilter = Filters.and(
-                        Filters.eq("bloodRequestStatus", "Pending"),
+                        Filters.eq("bloodRequestStatus", "Active"),
                         Filters.lt("expiryAt", now)
                     )
 
                     val update = Updates.combine(
-                        Updates.set("bloodRequestStatus", "Active"),
+                        Updates.set("bloodRequestStatus", "Expired"),
                         Updates.set("lastUpdatedAt", now)
                     )
 

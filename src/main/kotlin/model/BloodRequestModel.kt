@@ -26,7 +26,7 @@ data class BloodRequestModel(
     val bloodUnit: Int? = 0,
     val urgency: String? = "",
     val requisitionForm: String? = "",
-    val bloodRequestStatus: String? = "Pending",    // Pending / Active / Fulfilled / Cancelled / Expired
+    val bloodRequestStatus: String? = "Pending",    // Pending / Active / Fulfilled / Canceled / Expired
     val dateOfCreation: Long? = System.currentTimeMillis(),
     val number: String? = "",                       // Sensitive ✅
 

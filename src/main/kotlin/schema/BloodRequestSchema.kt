@@ -48,7 +48,7 @@ class BloodRequestSchema(
 
             val openRequests = bloodRequestCollection.find(
                 Document("userId", bloodRequestModel.userId)
-                    .append("bloodRequestStatus", "Open")
+                    .append("bloodRequestStatus", "Active")
             ).map { BloodRequestModel.fromDocument(it) }.toList()
 
             if (openRequests.size >= 2) throw HttpPostRequestDecoder.TooManyFormFieldsException()
