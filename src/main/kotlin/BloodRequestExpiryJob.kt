@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 class BloodRequestExpiryJob (
     private val bloodRequestCollection: MongoCollection<Document>,
-    private val intervalMinutes: Long = 30
+    private val intervalMinutes: Long = 5
 ){
     private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -38,7 +38,7 @@ class BloodRequestExpiryJob (
                     )
 
                     val update = Updates.combine(
-                        Updates.set("bloodRequestStatus", "Expired"),
+                        Updates.set("bloodRequestStatus", "Active"),
                         Updates.set("lastUpdatedAt", now)
                     )
 
