@@ -47,8 +47,9 @@ pipeline {
             steps {
                 script {
                     sh """
+                        echo "🚀 Starting Redis..."
+
                         if docker ps -aq -f name=^${REDIS_CONTAINER}\$; then
-                            echo "Stopping old Redis..."
                             docker stop ${REDIS_CONTAINER} || true
                             docker rm ${REDIS_CONTAINER} || true
                         fi
@@ -56,11 +57,22 @@ pipeline {
                         docker run -d \
                         --name ${REDIS_CONTAINER} \
                         --network ${NETWORK} \
-                        -p ${REDIS_PORT}:6379 \
-                        --restart unless-stopped \
                         redis:7
 
-                        echo "🧠 Redis started"
+                        echo "⏳ Waiting for Redis..."
+                        sleep 5
+
+                        echo "📜 Redis logs:"
+                        docker logs ${REDIS_CONTAINER}
+
+                        echo "🧪 Testing Redis connection..."
+                        if docker exec ${REDIS_CONTAINER} redis-cli ping | grep -q PONG; then
+                            echo "✅ Redis is working"
+                        else
+                            echo "❌ Redis failed to start"
+                            docker logs ${REDIS_CONTAINER}
+                            exit 1
+                        fi
                     """
                 }
             }
