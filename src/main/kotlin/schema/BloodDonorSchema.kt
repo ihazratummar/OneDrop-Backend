@@ -3,31 +3,26 @@ package com.api.hazrat.schema
 import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.model.BloodRequestModel
-import com.api.hazrat.util.DiscordLogger
-import com.api.hazrat.util.EncryptionUtil
 import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
+import com.api.hazrat.util.DiscordLogger
+import com.api.hazrat.util.EncryptionUtil
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.cloud.FirestoreClient
-
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import com.mongodb.kotlin.client.coroutine.MongoDatabase
-
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
-import kotlinx.coroutines.Dispatchers
+import com.mongodb.kotlin.client.coroutine.MongoCollection
+import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.withContext
 import org.bson.Document
 import org.bson.types.ObjectId
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 class BloodDonorSchema(
     database: MongoDatabase
@@ -42,7 +37,7 @@ class BloodDonorSchema(
     private val options = UpdateOptions().upsert(true)
 
     @OptIn(ExperimentalTime::class)
-    suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String = withContext(Dispatchers.IO) {
+    suspend fun createOrUpdateDonor(bloodDonorModel: BloodDonorModel): String   {
 
         // Validate required fields
 
@@ -113,31 +108,29 @@ class BloodDonorSchema(
                 )
             )
         }
-        return@withContext bloodDonorModel.userId!!
+        return bloodDonorModel.userId!!
 
     }
 
-    suspend fun getAllDonors(page: Int, limit: Int): List<BloodDonorModel> = withContext(Dispatchers.IO) {
-        donorCollection.find()
-            .skip((page - 1) * limit)
-            .limit(limit)
+    suspend fun getAllDonors(): List<BloodDonorModel>   {
+        val donor =  donorCollection.find()
             .map { BloodDonorModel.fromDocument(it) }
             .toList()
+        return donor
     }
 
-    suspend fun getDonorProfile(userId: String): BloodDonorModel = withContext(Dispatchers.IO) {
-        donorCollection.find(Filters.eq("_id", userId))
+    suspend fun getDonorProfile(userId: String): BloodDonorModel   {
+        return donorCollection.find(Filters.eq("_id", userId))
             .firstOrNull()
             ?.let { BloodDonorModel.fromDocument(it) }
             ?: throw IllegalArgumentException("No donor found with this id")
     }
 
-    suspend fun isBloodDonorExist(userId: String): Boolean = withContext(Dispatchers.IO) {
-        donorCollection.find(Filters.eq("_id", userId)).firstOrNull() != null
+    suspend fun isBloodDonorExist(userId: String): Boolean   {
+        return donorCollection.find(Filters.eq("_id", userId)).firstOrNull() != null
     }
 
-    suspend fun toggleAvailability(userId: String, key: String): Boolean =
-        withContext(Dispatchers.IO) {
+    suspend fun toggleAvailability(userId: String, key: String): Boolean   {
 
             val donor = donorCollection.find(Filters.eq("_id", userId)).firstOrNull()
                 ?: throw IllegalArgumentException("No Donor Found")
@@ -150,16 +143,16 @@ class BloodDonorSchema(
                 Updates.set(key, updated)
             )
 
-            if (result.modifiedCount > 0) updated
+            return if (result.modifiedCount > 0) updated
             else throw IllegalStateException("Failed to update availability")
         }
 
-    suspend fun deleteBloodDonor(userId: String): Boolean = withContext(Dispatchers.IO) {
-        donorCollection.deleteOne(Filters.eq("_id", userId)).deletedCount > 0
+    suspend fun deleteBloodDonor(userId: String): Boolean   {
+        return donorCollection.deleteOne(Filters.eq("_id", userId)).deletedCount > 0
     }
 
-    suspend fun deleteUserAccount(userId: String): Boolean = withContext(Dispatchers.IO) {
-        try {
+    suspend fun deleteUserAccount(userId: String): Boolean   {
+        return try {
             val firestore = FirestoreClient.getFirestore()
             firestore.collection("users").document(userId).delete()
 
@@ -193,8 +186,8 @@ class BloodDonorSchema(
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun resetBloodDonorScore(userId: String): Boolean = withContext(Dispatchers.IO) {
-        try {
+    suspend fun resetBloodDonorScore(userId: String): Boolean   {
+        return try {
             donorCollection.updateOne(
                 Filters.eq("_id", userId),
                 Updates.combine(
@@ -208,9 +201,8 @@ class BloodDonorSchema(
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun updateNotificationScope(userId: String, notificationScope: String): Boolean =
-        withContext(Dispatchers.IO) {
-            try {
+    suspend fun updateNotificationScope(userId: String, notificationScope: String): Boolean   {
+            return try {
                 donorCollection.updateOne(
                     Filters.eq("_id", userId),
                     Updates.combine(
@@ -233,12 +225,11 @@ class BloodDonorSchema(
     // 🔥 UPDATED: OperationResult IMPLEMENTATION WITH httpStatus
     // ---------------------------------------------------------------------
 
-    suspend fun getMyBloodDonationList(userId: String): OperationResult<List<BloodRequestModel>> =
-        withContext(Dispatchers.IO) {
+    suspend fun getMyBloodDonationList(userId: String): OperationResult<List<BloodRequestModel>>   {
 
-            try {
+            return try {
                 val donor = donorCollection.find(Filters.eq("_id", userId)).firstOrNull()
-                    ?: return@withContext OperationResult.Failure(
+                    ?: return  OperationResult.Failure(
                         message = "Donor not found",
                         httpStatus = 404
                     )
@@ -246,7 +237,7 @@ class BloodDonorSchema(
                 val donated = donor.getList("bloodDonated", String::class.java) ?: emptyList()
 
                 if (donated.isEmpty())
-                    return@withContext OperationResult.Success(
+                    return  OperationResult.Success(
                         data = emptyList(),
                         message = "No history found",
                         httpStatus = 200

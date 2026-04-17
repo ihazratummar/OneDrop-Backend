@@ -13,11 +13,14 @@ import com.api.hazrat.service.ReportService
 import com.api.hazrat.util.AppSecret.MONGO_CONNECTION_URI
 import com.api.hazrat.util.AppSecret.MONGO_DATABASE_NAME
 import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
+import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import io.ktor.server.application.*
 import kotlinx.coroutines.launch
 import org.bson.Document
+import java.util.concurrent.TimeUnit
 
 fun Application.configureDatabases(): MongoDatabase {
     val mongoDatabase = connectToMongoDB()
@@ -61,7 +64,24 @@ fun Application.configureDatabases(): MongoDatabase {
  * */
 fun Application.connectToMongoDB(): MongoDatabase {
 
-    val mongoClient = MongoClient.create(MONGO_CONNECTION_URI)
+    val connectionString = ConnectionString(MONGO_CONNECTION_URI)
+
+    val settings = MongoClientSettings.builder()
+        .applyConnectionString(connectionString)
+        .applyToConnectionPoolSettings {
+            it.maxSize(200)
+            it.minSize(20)
+            it.maxWaitTime(5, TimeUnit.SECONDS)
+        }
+        .applyToSocketSettings {
+            it.connectTimeout(5, TimeUnit.SECONDS)
+            it.readTimeout(10, TimeUnit.SECONDS)
+        }
+        .applyToClusterSettings {
+            it.serverSelectionTimeout(5, TimeUnit.SECONDS)
+        }
+        .build()
+    val mongoClient = MongoClient.create(settings)
     val database = mongoClient.getDatabase(MONGO_DATABASE_NAME)
     environment.monitor.subscribe(ApplicationStopped) {
         mongoClient.close()

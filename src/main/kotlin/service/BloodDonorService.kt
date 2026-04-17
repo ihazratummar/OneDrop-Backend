@@ -14,8 +14,8 @@ class BloodDonorService(
     }
 
 
-    suspend fun getAllBloodDonors(page: Int, limit: Int) : List<BloodDonorModel>{
-        return bloodDonorSchema.getAllDonors(page = page, limit = limit)
+    suspend fun getAllBloodDonors() : List<BloodDonorModel>{
+        return bloodDonorSchema.getAllDonors()
     }
 
 
