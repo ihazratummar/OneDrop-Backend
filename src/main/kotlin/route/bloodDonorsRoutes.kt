@@ -47,12 +47,6 @@ fun Application.bloodDonorRoutes(
                     call.respond(HttpStatusCode.OK, donor)
                 }
 
-                get("/is-donor-exist"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    val isDonor = service.isBloodDonorExist(userId = userId)
-                    call.respond(HttpStatusCode.OK, isDonor)
-                }
-
                 post("/toggle-availability") {
                     val userId = call.parameters["userId"]?: return@post call.respond(HttpStatusCode.BadRequest, "Missing userId")
                     val key = call.parameters["key"]?: return@post call.respond(HttpStatusCode.BadRequest, "Missing userId")

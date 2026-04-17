@@ -20,4 +20,6 @@ object AppSecret {
     val ONE_DROP_API_TOKEN: String = dotenv["ONE_DROP_API_TOKEN"]
     val DISCORD_WEBHOOK_URL: String = dotenv["DISCORD_WEBHOOK_URL"]
     val FIREBASE_KEY_PATH : String = dotenv["FIREBASE_KEY_PATH"]
+    val REDIS_HOST: String = dotenv["REDIS_HOST"]
+    val REDIS_PORT : Int = dotenv["REDIS_PORT"].toInt()
 }

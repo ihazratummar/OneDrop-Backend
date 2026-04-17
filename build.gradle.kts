@@ -46,4 +46,6 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging")
     implementation("ch.qos.logback:logback-classic:1.4.14")
 
+    implementation(libs.redis.client)
+
 }

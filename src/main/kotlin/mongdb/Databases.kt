@@ -1,5 +1,6 @@
 package com.api.hazrat.mongdb
 
+import com.api.hazrat.configureCache
 import com.api.hazrat.route.bloodDonorRoutes
 import com.api.hazrat.route.bloodRequestRoutes
 import com.api.hazrat.route.migrationRoutes
@@ -25,7 +26,8 @@ import java.util.concurrent.TimeUnit
 fun Application.configureDatabases(): MongoDatabase {
     val mongoDatabase = connectToMongoDB()
     val bloodDonorSchema = BloodDonorSchema(mongoDatabase)
-    val bloodDonorService = BloodDonorService(bloodDonorSchema = bloodDonorSchema)
+    val cacheService = configureCache()
+    val bloodDonorService = BloodDonorService(bloodDonorSchema = bloodDonorSchema, cacheService)
     bloodDonorRoutes(service = bloodDonorService)
 
 

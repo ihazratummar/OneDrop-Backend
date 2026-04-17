@@ -4,17 +4,16 @@ pipeline {
     environment {
         IMAGE = "onedrop-backend:v1"
         CONTAINER = "onedrop-backend"
+
+        REDIS_CONTAINER = "onedrop-redis"
+
         NETWORK = "custom_bridge"
         STATIC_IP = "172.25.0.5"
         PORT = "9091"
+        REDIS_PORT = "6379"
 
-        // ENV file for generic env variables
         ENV_FILE = "/home/envs/onedropbackend.env"
-
-        // Firebase JSON file stored on host
         FIREBASE_FILE_HOST = "/home/envs/firebase/onedrop_backend.json"
-
-        // Path visible inside the container
         FIREBASE_FILE_CONTAINER = "/app/firebase/onedrop_backend.json"
     }
 
@@ -37,25 +36,47 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh """
-                        docker build -t ${IMAGE} .
-                    """
+                    sh "docker build -t ${IMAGE} ."
                     echo "🐳 Docker image built successfully"
                 }
             }
         }
 
-        stage('Stop & Remove Old Container') {
+        // ✅ NEW: Start Redis
+        stage('Run Redis') {
+            steps {
+                script {
+                    sh """
+                        if docker ps -aq -f name=^${REDIS_CONTAINER}\$; then
+                            echo "Stopping old Redis..."
+                            docker stop ${REDIS_CONTAINER} || true
+                            docker rm ${REDIS_CONTAINER} || true
+                        fi
+
+                        docker run -d \
+                        --name ${REDIS_CONTAINER} \
+                        --network ${NETWORK} \
+                        -p ${REDIS_PORT}:6379 \
+                        --restart unless-stopped \
+                        redis:7
+
+                        echo "🧠 Redis started"
+                    """
+                }
+            }
+        }
+
+        stage('Stop & Remove Old Backend') {
             steps {
                 script {
                     sh """
                         if docker ps -aq -f name=^${CONTAINER}\$; then
-                            echo "Stopping old container..."
+                            echo "Stopping old backend..."
                             docker stop ${CONTAINER} || true
                             docker rm ${CONTAINER} || true
-                            echo "🗑️ Old container removed"
+                            echo "🗑️ Old backend removed"
                         else
-                            echo "ℹ️ No existing container found"
+                            echo "ℹ️ No existing backend container"
                         fi
                     """
                 }
@@ -82,7 +103,7 @@ pipeline {
             }
         }
 
-        stage('Run New Container') {
+        stage('Run Backend Container') {
             steps {
                 script {
                     sh """
@@ -91,6 +112,8 @@ pipeline {
                         --network ${NETWORK} \
                         --ip ${STATIC_IP} \
                         -e FIREBASE_KEY_PATH="${FIREBASE_FILE_CONTAINER}" \
+                        -e REDIS_HOST="${REDIS_CONTAINER}" \
+                        -e REDIS_PORT="6379" \
                         --env-file ${ENV_FILE} \
                         -v ${FIREBASE_FILE_HOST}:${FIREBASE_FILE_CONTAINER} \
                         -p ${PORT}:${PORT} \
@@ -105,17 +128,20 @@ pipeline {
             steps {
                 script {
                     sh """
-                        echo "⏳ Waiting for backend to start..."
+                        echo "⏳ Waiting for backend..."
                         sleep 6
 
                         if docker ps -q -f name=${CONTAINER} -f status=running; then
                             echo "🔥 Backend is running"
                             docker logs --tail 20 ${CONTAINER}
                         else
-                            echo "❌ Backend failed to start"
+                            echo "❌ Backend failed"
                             docker logs ${CONTAINER}
                             exit 1
                         fi
+
+                        echo "🔍 Checking Redis..."
+                        docker exec ${REDIS_CONTAINER} redis-cli ping
                     """
                 }
             }
@@ -133,10 +159,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Deployment successful!"
+            echo "🎉 Deployment successful with Redis!"
         }
         failure {
-            echo "❌ Deployment failed… showing logs"
+            echo "❌ Deployment failed… logs below"
             sh "docker logs ${CONTAINER} || true"
         }
         always {
