@@ -126,10 +126,6 @@ class BloodDonorSchema(
             ?: throw IllegalArgumentException("No donor found with this id")
     }
 
-    suspend fun isBloodDonorExist(userId: String): Boolean   {
-        return donorCollection.find(Filters.eq("_id", userId)).firstOrNull() != null
-    }
-
     suspend fun toggleAvailability(userId: String, key: String): Boolean   {
 
             val donor = donorCollection.find(Filters.eq("_id", userId)).firstOrNull()

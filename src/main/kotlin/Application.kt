@@ -1,5 +1,6 @@
 package com.api.hazrat
 
+import com.api.hazrat.cache.CacheService
 import com.api.hazrat.mongdb.MongoChangeStreamManager
 import com.api.hazrat.mongdb.configureDatabases
 import com.api.hazrat.mongdb.connectToMongoDB
@@ -7,9 +8,9 @@ import com.api.hazrat.route.rootRouting
 import com.api.hazrat.route.websocketRoute
 import com.api.hazrat.serialization.configureSerialization
 import com.api.hazrat.util.AppSecret
-import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.AppSecret.ONE_DROP_API_TOKEN
+import com.api.hazrat.util.DiscordLogger
 import com.api.hazrat.websocket.UnifiedWebSocketManager
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
@@ -18,12 +19,13 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
-import io.ktor.server.request.path
+import io.ktor.server.request.*
 import io.ktor.server.websocket.*
 import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
+import redis.clients.jedis.JedisPool
 import java.io.FileInputStream
 import kotlin.time.Duration.Companion.seconds
 
@@ -74,10 +76,11 @@ fun Application.module() {
 
 
     embeddedServer(Netty, port = 9091, host = "0.0.0.0") {
-        configurePlugins()
         authentication()
-        configureSerialization()
+//        configureCache()
+        configurePlugins()
         configureDatabases()
+        configureSerialization()
 
         rootRouting()
         websocketRoute(manager = webSocketManager)
@@ -112,6 +115,11 @@ fun Application.configurePlugins() {
         }
     }
 
+}
+
+fun Application.configureCache(): CacheService {
+    val jedis = JedisPool(AppSecret.REDIS_HOST, AppSecret.REDIS_PORT)
+    return CacheService(jedis)
 }
 
 fun Application.authentication(){
