@@ -5,6 +5,8 @@ import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodRequestModel
 import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
+import com.api.hazrat.util.UrlValidator
+import com.google.cloud.firestore.telemetry.MetricsUtil.logger
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.mongodb.client.model.Filters
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
+import org.apache.commons.logging.Log
 import org.bson.Document
 import org.bson.types.ObjectId
 
@@ -77,6 +80,16 @@ class BloodRequestSchema(
             )
 
             val doc = newRequest.toDocument()
+
+            logger.info("New request: ${newRequest.requisitionForm}")
+
+            newRequest.requisitionForm?.let {
+                val isValidForm = UrlValidator.isValidFileUrl(url = it)
+                if(!isValidForm){
+                    throw IllegalArgumentException("Invalid Requisition Form")
+                }
+            }
+
             bloodRequestCollection.insertOne(doc)
 
             val insertedId = doc.getObjectId("_id").toString()

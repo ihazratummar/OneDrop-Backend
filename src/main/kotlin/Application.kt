@@ -18,9 +18,12 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.compression.*
+import io.ktor.server.request.path
 import io.ktor.server.websocket.*
 import kotlinx.coroutines.runBlocking
+import org.slf4j.event.Level
 import java.io.FileInputStream
 import kotlin.time.Duration.Companion.seconds
 
@@ -79,6 +82,16 @@ fun Application.module() {
         rootRouting()
         websocketRoute(manager = webSocketManager)
     }.start(wait = true)
+
+
+    install(CallLogging) {
+        level = Level.DEBUG
+
+        filter { call ->
+            call.request.path().startsWith("/")
+        }
+    }
+
 }
 
 fun Application.configurePlugins() {

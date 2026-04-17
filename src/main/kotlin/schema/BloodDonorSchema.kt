@@ -117,8 +117,10 @@ class BloodDonorSchema(
 
     }
 
-    suspend fun getAllDonors(): List<BloodDonorModel> = withContext(Dispatchers.IO) {
+    suspend fun getAllDonors(page: Int, limit: Int): List<BloodDonorModel> = withContext(Dispatchers.IO) {
         donorCollection.find()
+            .skip((page - 1) * limit)
+            .limit(limit)
             .map { BloodDonorModel.fromDocument(it) }
             .toList()
     }

@@ -43,4 +43,7 @@ dependencies {
 
     implementation(libs.firebase.admin)
 
+    implementation("io.ktor:ktor-server-call-logging")
+    implementation("ch.qos.logback:logback-classic:1.4.14")
+
 }

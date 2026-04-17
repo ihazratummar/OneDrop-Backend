@@ -31,8 +31,10 @@ fun Application.bloodDonorRoutes(
 
                 get("/get-donors"){
                     try {
-                        val donors = service.getAllBloodDonors()
-                        println("Fetched Donors : $donors")
+                        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+                        val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+                        val donors = service.getAllBloodDonors(page= page, limit = limit)
+
                         call.respond(HttpStatusCode.OK, donors)
                     }catch (e: Exception){
                         e.printStackTrace()
