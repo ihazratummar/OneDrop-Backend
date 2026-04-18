@@ -1,5 +1,6 @@
 package com.api.hazrat
 
+import com.api.hazrat.cache.CacheService
 import com.api.hazrat.util.DiscordLogger
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
@@ -21,7 +22,8 @@ import java.util.concurrent.TimeUnit
 
 class BloodRequestExpiryJob (
     private val bloodRequestCollection: MongoCollection<Document>,
-    private val intervalMinutes: Long = 5
+    private val intervalMinutes: Long = 15,
+    private val cache: CacheService
 ){
     private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -45,6 +47,8 @@ class BloodRequestExpiryJob (
                     val result = bloodRequestCollection.updateMany(expiredFilter, update)
 
                     if (result.modifiedCount > 0) {
+                        cache.deleteByPattern("bloodRequests:*")
+                        cache.deleteByPattern("bloodRequest:*")
                         DiscordLogger.log(
                             DiscordLogger.LogMessage(
                                 level = "INFO",

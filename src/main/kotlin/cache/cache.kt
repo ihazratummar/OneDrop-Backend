@@ -9,4 +9,8 @@ object CacheKeys {
     fun donorsPage(page: Int) = "donors:page:$page"
 
     fun donorsCount() = "donors:count"
+
+
+    fun bloodRequest(requestId: String) = "bloodRequest:$requestId"
+    fun bloodRequests() = "bloodRequests"
 }

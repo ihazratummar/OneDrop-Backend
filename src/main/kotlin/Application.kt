@@ -44,6 +44,8 @@ fun Application.module() {
 
     FirebaseApp.initializeApp(options)
 
+    val cacheService = configureCache()
+
     // MongoDB connection
     val mongoDatabase = connectToMongoDB()
 
@@ -59,8 +61,9 @@ fun Application.module() {
 
     // Blood request expiry job
     val expiryJob = BloodRequestExpiryJob(
-        bloodRequestCollection = mongoDatabase.getCollection(BLOOD_REQUEST_COLLECTION_NAME)
+        bloodRequestCollection = mongoDatabase.getCollection(BLOOD_REQUEST_COLLECTION_NAME),
         // No need to pass websocketManager - Change Streams handle it automatically!
+        cache = cacheService
     )
     expiryJob.start()
 

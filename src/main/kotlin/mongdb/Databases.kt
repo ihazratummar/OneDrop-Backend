@@ -35,7 +35,7 @@ fun Application.configureDatabases(): MongoDatabase {
     launch {
         bloodRequestSchema.ensureIndexes()
     }
-    val bloodRequestService = BloodRequestService(bloodRequestSchema = bloodRequestSchema)
+    val bloodRequestService = BloodRequestService(bloodRequestSchema = bloodRequestSchema, cache = cacheService)
     bloodRequestRoutes(service = bloodRequestService)
 
     val reportSchema = ReportSchema(database = mongoDatabase)
