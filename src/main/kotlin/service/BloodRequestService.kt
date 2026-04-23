@@ -3,8 +3,8 @@ package com.api.hazrat.service
 import com.api.hazrat.cache.CacheKeys
 import com.api.hazrat.cache.CacheService
 import com.api.hazrat.execptions.OperationResult
-import com.api.hazrat.model.BloodRequestFilters
 import com.api.hazrat.model.BloodRequestModel
+import com.api.hazrat.model.PaginationResult
 import com.api.hazrat.schema.BloodRequestSchema
 
 
@@ -34,6 +34,18 @@ class BloodRequestService(
         return bloodRequests
 
     }
+
+    suspend fun getAllBloodRequestRaw(sortBy: String, filter: String? = null, page: Int = 1, limit: Int = 20) : PaginationResult<BloodRequestModel> {
+        val key = "bloodRequests:$sortBy:${filter ?: "all"}:$page:${limit}"
+        cache.get<PaginationResult<BloodRequestModel>>(key)?.let {
+            return it
+        }
+
+        val bloodRequests = bloodRequestSchema.getAllBloodRequestRaw(sortBy = sortBy, page = page, limit = limit)
+        cache.set(key = key, value = bloodRequests)
+        return bloodRequests
+    }
+
 
     suspend fun getBloodRequest(bloodRequestId: String): OperationResult<BloodRequestModel> {
         val key = CacheKeys.bloodRequest(bloodRequestId)

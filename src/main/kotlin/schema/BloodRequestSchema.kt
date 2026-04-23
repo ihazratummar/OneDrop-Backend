@@ -3,6 +3,7 @@ package com.api.hazrat.schema
 // ❗ FIXED — use coroutine versions and OperationResult
 import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodRequestModel
+import com.api.hazrat.model.PaginationResult
 import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.api.hazrat.util.UrlValidator
@@ -21,9 +22,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
-import org.apache.commons.logging.Log
 import org.bson.Document
 import org.bson.types.ObjectId
+import kotlin.math.ceil
 
 class BloodRequestSchema(
     database: MongoDatabase
@@ -107,6 +108,46 @@ class BloodRequestSchema(
             insertedId
         }
 
+    suspend fun getAllBloodRequestRaw(
+        sortBy: String,
+        filter: String? = null,
+        page: Int = 1 ,
+        limit: Int = 20
+    ): PaginationResult<BloodRequestModel > {
+
+        val sortField = when (sortBy) {
+            "Recent" -> Sorts.descending("dateOfCreation")
+            "Date" -> Sorts.ascending("date")
+            else -> Sorts.descending("dateOfCreation")
+        }
+
+        val filterDoc = when {
+            filter == null || filter == "All" -> Filters.empty()
+            else -> Filters.eq("bloodRequestStatus", filter)
+        }
+
+        val skip = (page - 1) * limit
+
+        val bloodRequest = bloodRequestCollection.find(filterDoc)
+            .skip(skip)
+            .limit(limit)
+            .map { BloodRequestModel.fromDocument(it) }
+            .toList()
+
+        val totalItems = bloodRequestCollection.countDocuments(filterDoc)
+        val totalPage = ceil(totalItems.toDouble() / limit).toInt()
+
+        return PaginationResult(
+            data = bloodRequest,
+            page = page,
+            limit = limit,
+            totalPages = totalPage,
+            totalItems = totalItems,
+            hasNextPage = page < totalPage ,
+            hasPreviousPage = page > 1,
+        )
+
+    }
 
     suspend fun getAllBloodRequests(
         sortBy: String,

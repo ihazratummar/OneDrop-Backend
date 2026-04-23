@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.2.20"
 ktor = "3.3.1"
-logback = "1.4.14"
+logback = "1.5.13"
 kotlinx-coroutines-core="1.7.3"
 mongo-version = "4.10.2"
 dotenv = "6.4.1"

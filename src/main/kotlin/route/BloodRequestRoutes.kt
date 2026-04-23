@@ -228,6 +228,25 @@ fun Application.bloodRequestRoutes(
                     }
                 }
             }
+
+            route("api/v2/blood-request") {
+                get("/get-blood-requests") {
+
+                    try {
+                        val sortBy = call.parameters["sortBy"] ?: "Recent"
+                        val filter = call.parameters["statusFilter"] ?: BloodRequestFilters.ALL.displayName
+                        val page = call.request.queryParameters["page"]?.toInt() ?: 1
+                        val limit = call.request.queryParameters["limit"]?.toInt() ?: 20
+
+                        val bloodRequests = service.getAllBloodRequestRaw(sortBy = sortBy, filter = filter, page = page, limit = limit )
+                        call.respond(HttpStatusCode.OK, bloodRequests)
+                    } catch (e: Exception) {
+                        println("Error: ${e.localizedMessage}")
+                        call.respond(HttpStatusCode.BadRequest, "Invalid request format")
+                    }
+
+                }
+            }
         }
     }
 }
