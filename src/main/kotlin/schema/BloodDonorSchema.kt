@@ -3,6 +3,7 @@ package com.api.hazrat.schema
 import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.model.BloodRequestModel
+import com.api.hazrat.model.PaginationResult
 import com.api.hazrat.util.AppSecret.BLOOD_REQUEST_COLLECTION_NAME
 import com.api.hazrat.util.AppSecret.USER_COLLECTION_NAME
 import com.api.hazrat.util.DiscordLogger
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import org.bson.Document
 import org.bson.types.ObjectId
+import kotlin.math.ceil
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -112,11 +114,32 @@ class BloodDonorSchema(
 
     }
 
-    suspend fun getAllDonors(): List<BloodDonorModel>   {
+    suspend fun getAllDonors(page: Int, limit: Int): PaginationResult<BloodDonorModel>  {
+        val skip = (page - 1) * limit
         val donor =  donorCollection.find()
+            .skip(skip)
+            .limit(limit)
             .map { BloodDonorModel.fromDocument(it) }
             .toList()
-        return donor
+
+        val totalItems = donorCollection.countDocuments()
+        val totalPages = ceil(totalItems.toDouble() / limit).toInt()
+        return PaginationResult(
+            data = donor,
+            page = page,
+            limit = limit,
+            totalItems = totalItems,
+            totalPages = totalPages,
+            hasNextPage = page < totalPages,
+            hasPreviousPage = page > 1
+        )
+    }
+
+    suspend fun getBloodDonorRaw(): List<BloodDonorModel> {
+        val donors = donorCollection.find()
+            .map { BloodDonorModel.fromDocument(it) }
+            .toList()
+        return donors
     }
 
     suspend fun getDonorProfile(userId: String): BloodDonorModel   {

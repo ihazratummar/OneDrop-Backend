@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
 fun Application.configureDatabases(): MongoDatabase {
     val mongoDatabase = connectToMongoDB()
     val bloodDonorSchema = BloodDonorSchema(mongoDatabase)
-    val cacheService = configureCache()
+    val cacheService = configureCache()!!
     val bloodDonorService = BloodDonorService(bloodDonorSchema = bloodDonorSchema, cacheService)
     bloodDonorRoutes(service = bloodDonorService)
 

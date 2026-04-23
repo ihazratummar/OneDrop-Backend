@@ -5,6 +5,7 @@ import com.api.hazrat.cache.CacheService
 import com.api.hazrat.execptions.OperationResult
 import com.api.hazrat.model.BloodDonorModel
 import com.api.hazrat.model.BloodRequestModel
+import com.api.hazrat.model.PaginationResult
 import com.api.hazrat.schema.BloodDonorSchema
 
 class BloodDonorService(
@@ -19,16 +20,26 @@ class BloodDonorService(
     }
 
 
-    suspend fun getAllBloodDonors(): List<BloodDonorModel> {
-        val key = CacheKeys.donors()
-
+    suspend fun getAllBloodDonors(page: Int, limit: Int): PaginationResult<BloodDonorModel> {
+        val key = "${CacheKeys.donors()}:$page:$limit"
         // check cache
-        cache.get<List<BloodDonorModel>>(key)?.let {
+        cache.get<PaginationResult<BloodDonorModel>>(key)?.let {
             return it
         }
-        val donors = bloodDonorSchema.getAllDonors()
+        val donors = bloodDonorSchema.getAllDonors(page = page, limit = limit)
         cache.set(key, donors)
         return donors
+    }
+
+    suspend fun getAllBloodDonorRaw(): List<BloodDonorModel> {
+        val key = CacheKeys.donors()
+        cache.get<List<BloodDonorModel>>(key = key)?.let {
+            return it
+        }
+        val donors = bloodDonorSchema.getBloodDonorRaw()
+        cache.set(key, donors)
+        return donors
+
     }
 
 

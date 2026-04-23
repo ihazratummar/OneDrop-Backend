@@ -23,6 +23,7 @@ import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.request.*
 import io.ktor.server.websocket.*
+import io.ktor.util.logging.KtorSimpleLogger
 import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
 import redis.clients.jedis.JedisPool
@@ -63,7 +64,7 @@ fun Application.module() {
     val expiryJob = BloodRequestExpiryJob(
         bloodRequestCollection = mongoDatabase.getCollection(BLOOD_REQUEST_COLLECTION_NAME),
         // No need to pass websocketManager - Change Streams handle it automatically!
-        cache = cacheService
+        cache = cacheService!!
     )
     expiryJob.start()
 
@@ -80,7 +81,6 @@ fun Application.module() {
 
     embeddedServer(Netty, port = 9091, host = "0.0.0.0") {
         authentication()
-//        configureCache()
         configurePlugins()
         configureDatabases()
         configureSerialization()
@@ -120,9 +120,15 @@ fun Application.configurePlugins() {
 
 }
 
-fun Application.configureCache(): CacheService {
-    val jedis = JedisPool(AppSecret.REDIS_HOST, AppSecret.REDIS_PORT)
-    return CacheService(jedis)
+fun Application.configureCache(): CacheService ?{
+    return try {
+        val jedis = JedisPool(AppSecret.REDIS_HOST, AppSecret.REDIS_PORT)
+        CacheService(jedis)
+    }catch (e: Exception){
+        val logger = KtorSimpleLogger("Cache")
+        logger.error("Failed to connect to redis: ${e.message}")
+        null
+    }
 }
 
 fun Application.authentication(){

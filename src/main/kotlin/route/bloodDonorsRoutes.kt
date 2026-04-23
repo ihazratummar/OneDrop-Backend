@@ -31,16 +31,15 @@ fun Application.bloodDonorRoutes(
 
                 get("/get-donors"){
                     try {
-                        val donors = service.getAllBloodDonors()
+                        val donors = service.getAllBloodDonorRaw()
                         call.respond(HttpStatusCode.OK, donors)
 //                        call.respondText("Hello")
                     }catch (e: Exception){
                         e.printStackTrace()
+                        call.respond(HttpStatusCode.InternalServerError, "An error occurred: ${e.message}")
                         println("Error fetching donors ${e.localizedMessage}")
                     }
                 }
-
-
                 get ("/donor-profile"){
                     val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
                     val donor = service.getDonorProfile(userId = userId)
@@ -141,6 +140,26 @@ fun Application.bloodDonorRoutes(
                         }
                     }catch (e: Exception){
                         call.respond(HttpStatusCode.InternalServerError, "Error ${e.localizedMessage}")
+                    }
+                }
+            }
+
+            route("api/v2/donors"){
+                get("/get-donors"){
+                    try {
+                        val page = call.request.queryParameters["page"]?.toInt() ?: 1
+                        val limit = call.request.queryParameters["limit"]?.toInt() ?: 10
+
+                        if (page < 1 || limit < 1 || limit > 20){
+                            call.respond(HttpStatusCode.BadRequest, "Page number must be between 1 and 10")
+                            return@get
+                        }
+                        val donors = service.getAllBloodDonors(page = page, limit = limit)
+                        call.respond(HttpStatusCode.OK, donors)
+                    }catch (e: Exception){
+                        e.printStackTrace()
+                        call.respond(HttpStatusCode.InternalServerError, "An error occurred: ${e.message}")
+                        println("Error fetching donors ${e.localizedMessage}")
                     }
                 }
             }

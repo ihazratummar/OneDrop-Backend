@@ -1,27 +1,34 @@
 package com.api.hazrat.cache
 
+import io.ktor.util.logging.KtorSimpleLogger
 import kotlinx.serialization.json.Json
 import redis.clients.jedis.JedisPool
 
 class CacheService(
     private val pool: JedisPool
 ) {
+    val logger= KtorSimpleLogger("CacheService")
 
     internal inline fun <reified T> get(key: String): T? {
-        pool.resource.use { jedis ->
-            val data = jedis.get(key) ?: return null
-            return try {
+        return try {
+            pool.resource.use { jedis ->
+                val data = jedis.get(key) ?: return null
                 Json.decodeFromString<T>(data)
-            } catch (e: Exception) {
-                null
             }
+        } catch (e: Exception) {
+            logger.error("Error while fetching $key", e)
+            null
         }
     }
 
     internal inline fun <reified T> set(key: String, value: T, ttl: Long = 60) {
-        pool.resource.use { jedis ->
-            val json = Json.encodeToString(value)
-            jedis.setex(key, ttl, json)
+        try {
+            pool.resource.use { jedis ->
+                val json = Json.encodeToString(value)
+                jedis.setex(key, ttl, json)
+            }
+        } catch (e: Exception) {
+            logger.error("Error while setting $key", e)
         }
     }
 
