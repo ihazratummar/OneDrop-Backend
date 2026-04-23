@@ -57,6 +57,7 @@ pipeline {
                         docker run -d \
                         --name ${REDIS_CONTAINER} \
                         --network ${NETWORK} \
+                        --restart unless-stopped \
                         redis:7
 
                         echo "⏳ Waiting for Redis..."
