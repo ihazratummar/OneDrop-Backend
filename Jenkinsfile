@@ -50,8 +50,8 @@ pipeline {
         stage('Build App (Gradle)') {
             steps {
                 sh '''
-                    export JAVA_OPTS="-Xmx512m -Xms256m"
-                    export GRADLE_OPTS="-Xmx512m -Dorg.gradle.jvmargs=-Xmx512m"
+                    export JAVA_OPTS="-Xmx1024m -Xms256m"
+                    export GRADLE_OPTS="-Xmx1024m -Dorg.gradle.jvmargs=-Xmx1024m"
                     
                     # Kill any orphaned Gradle daemons
                     pkill -f GradleDaemon || true
