@@ -1,0 +1,80 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 22
+        uses: actions/setup-java@v4
+        with:
+          java-version: '22'
+          distribution: 'corretto'
+
+      - name: Grant Gradle permission
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build --no-daemon
+        env:
+          JAVA_OPTS: "-Xmx2g -Xms512m"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/onedrop-backend:latest
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/onedrop-backend:latest
+            
+            docker stop onedrop-backend || true
+            docker rm onedrop-backend || true
+            
+            docker stop onedrop-redis || true
+            docker rm onedrop-redis || true
+            
+            docker run -d \
+              --name onedrop-redis \
+              --network custom_bridge \
+              --restart unless-stopped \
+              redis:7
+            
+            sleep 3
+            
+            docker run -d \
+              --name onedrop-backend \
+              --network custom_bridge \
+              --ip 172.25.0.5 \
+              -e FIREBASE_KEY_PATH="/app/firebase/onedrop_backend.json" \
+              -e REDIS_HOST="onedrop-redis" \
+              -e REDIS_PORT="6379" \
+              --env-file /home/envs/onedropbackend.env \
+              -v /home/envs/firebase/onedrop_backend.json:/app/firebase/onedrop_backend.json \
+              -p 9091:9091 \
+              --restart unless-stopped \
+              ${{ secrets.DOCKERHUB_USERNAME }}/onedrop-backend:latest
+            
+            sleep 5
+            docker ps | grep onedrop-backend
+            docker exec onedrop-redis redis-cli ping
