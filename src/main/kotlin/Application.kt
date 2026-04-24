@@ -16,8 +16,8 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
+import io.ktor.server.netty.EngineMain
+
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.request.*
@@ -43,6 +43,19 @@ fun Application.module() {
         .build()
 
     FirebaseApp.initializeApp(options)
+
+    // Install plugins FIRST (authentication must come before routes that use authenticate{})
+    authentication()
+    configurePlugins()
+    configureSerialization()
+
+    install(CallLogging) {
+        level = Level.DEBUG
+
+        filter { call ->
+            call.request.path().startsWith("/")
+        }
+    }
 
     val cacheService = configureCache()
 
@@ -77,25 +90,9 @@ fun Application.module() {
         DiscordLogger.log(DiscordLogger.LogMessage(level = "INFO", message = "Graceful shutdown complete"))
     }
 
-
-    embeddedServer(Netty, port = 9091, host = "0.0.0.0") {
-        authentication()
-        configurePlugins()
-        configureDatabases()
-        configureSerialization()
-        rootRouting()
-        websocketRoute(manager = webSocketManager)
-    }.start(wait = true)
-
-
-    install(CallLogging) {
-        level = Level.DEBUG
-
-        filter { call ->
-            call.request.path().startsWith("/")
-        }
-    }
-
+    // Routes
+    rootRouting()
+    websocketRoute(manager = webSocketManager)
 }
 
 fun Application.configurePlugins() {
