@@ -71,16 +71,18 @@ fun Application.connectToMongoDB(): MongoDatabase {
     val settings = MongoClientSettings.builder()
         .applyConnectionString(connectionString)
         .applyToConnectionPoolSettings {
-            it.maxSize(200)
-            it.minSize(20)
-            it.maxWaitTime(5, TimeUnit.SECONDS)
+            it.maxSize(10)
+            it.minSize(2)
+            it.maxWaitTime(10, TimeUnit.SECONDS)
+            it.maxConnectionIdleTime(60, TimeUnit.SECONDS)
+            it.maxConnectionLifeTime(60, TimeUnit.SECONDS)
         }
         .applyToSocketSettings {
             it.connectTimeout(5, TimeUnit.SECONDS)
             it.readTimeout(10, TimeUnit.SECONDS)
         }
         .applyToClusterSettings {
-            it.serverSelectionTimeout(5, TimeUnit.SECONDS)
+            it.serverSelectionTimeout(10, TimeUnit.SECONDS)
         }
         .build()
     val mongoClient = MongoClient.create(settings)
