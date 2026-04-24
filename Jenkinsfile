@@ -47,30 +47,12 @@ pipeline {
             }
         }
 
-        stage('Build App (Gradle)') {
-            steps {
-                sh '''
-                    export JAVA_OPTS="-Xmx1024m -Xms256m"
-                    export GRADLE_OPTS="-Xmx1024m -Dorg.gradle.jvmargs=-Xmx1024m"
-                    
-                    # Kill any orphaned Gradle daemons
-                    pkill -f GradleDaemon || true
-                    
-                    # Nuke the entire Gradle home to clear ALL corrupted state
-                    # (lock files, metadata, daemon info, native cache — everything)
-                    rm -rf /root/.gradle/caches/ /root/.gradle/daemon/ /root/.gradle/native/ /root/.gradle/build-scan-data/ || true
-                    
-                    ./gradlew clean build --no-daemon --max-workers=1
-                '''
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    # Give JVM time to fully exit before Docker build starts
-                    sleep 3
-                    docker build --memory=1g --memory-swap=2g -t onedrop-backend:v1 .
+                    # The Dockerfile handles the full Gradle build inside Docker
+                    # No need to build on the host (avoids OOM on low-memory servers)
+                    docker build -t onedrop-backend:v1 .
                 '''
             }
         }

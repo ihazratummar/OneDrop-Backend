@@ -5,13 +5,15 @@ FROM gradle:8.11-jdk21 AS cache
 WORKDIR /home/gradle/app
 
 # Copy Gradle build files (for dependency caching)
-COPY build.gradle* gradle.properties gradle/ ./
+COPY build.gradle.kts settings.gradle.kts gradle.properties ./
+COPY gradle/ gradle/
 
 # Use a local Gradle home for caching
 ENV GRADLE_USER_HOME=/home/gradle/.gradle
+ENV GRADLE_OPTS="-Xmx1536m"
 
 # Pre-download and cache dependencies (ignore build/test failures)
-RUN gradle build -x test --no-daemon || true
+RUN gradle dependencies --no-daemon || true
 
 # ================================
 # Stage 2: Build Application 🏗️
@@ -26,6 +28,7 @@ COPY --from=cache /home/gradle/.gradle /home/gradle/.gradle
 COPY . .
 
 # Build fat JAR (Ktor supports shadowJar or buildFatJar)
+ENV GRADLE_OPTS="-Xmx1536m"
 RUN gradle buildFatJar --no-daemon
 
 # ================================
