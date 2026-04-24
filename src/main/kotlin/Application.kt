@@ -3,7 +3,6 @@ package com.api.hazrat
 import com.api.hazrat.cache.CacheService
 import com.api.hazrat.mongdb.MongoChangeStreamManager
 import com.api.hazrat.mongdb.configureDatabases
-import com.api.hazrat.mongdb.connectToMongoDB
 import com.api.hazrat.route.rootRouting
 import com.api.hazrat.route.websocketRoute
 import com.api.hazrat.serialization.configureSerialization
@@ -23,7 +22,7 @@ import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.request.*
 import io.ktor.server.websocket.*
-import io.ktor.util.logging.KtorSimpleLogger
+import io.ktor.util.logging.*
 import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
 import redis.clients.jedis.JedisPool
@@ -48,7 +47,7 @@ fun Application.module() {
     val cacheService = configureCache()
 
     // MongoDB connection
-    val mongoDatabase = connectToMongoDB()
+    val mongoDatabase = configureDatabases()
 
     // WebSocket manager (handles 10,000+ connection)
     val webSocketManager = UnifiedWebSocketManager(environment)
@@ -84,7 +83,6 @@ fun Application.module() {
         configurePlugins()
         configureDatabases()
         configureSerialization()
-
         rootRouting()
         websocketRoute(manager = webSocketManager)
     }.start(wait = true)
