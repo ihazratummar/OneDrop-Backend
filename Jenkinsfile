@@ -52,7 +52,12 @@ pipeline {
                 sh '''
                     export JAVA_OPTS="-Xmx512m -Xms256m"
                     export GRADLE_OPTS="-Xmx512m -Dorg.gradle.jvmargs=-Xmx512m"
-                    ./gradlew clean build --no-daemon --max-workers=1
+                    
+                    # Fix for: "Could not load module metadata ... descriptor.bin"
+                    # Remove potentially corrupted module metadata and force a refresh
+                    rm -rf /root/.gradle/caches/modules-2/metadata-*/descriptors/io.ktor.plugin/ || true
+                    
+                    ./gradlew clean build --no-daemon --max-workers=1 --refresh-dependencies
                 '''
             }
         }
