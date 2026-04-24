@@ -53,11 +53,14 @@ pipeline {
                     export JAVA_OPTS="-Xmx512m -Xms256m"
                     export GRADLE_OPTS="-Xmx512m -Dorg.gradle.jvmargs=-Xmx512m"
                     
-                    # Fix for: "Could not load module metadata ... descriptor.bin"
-                    # The entire modules-2 cache is corrupted — wipe it all
-                    rm -rf /root/.gradle/caches/modules-2/ || true
+                    # Kill any orphaned Gradle daemons
+                    pkill -f GradleDaemon || true
                     
-                    ./gradlew clean build --no-daemon --max-workers=1 --refresh-dependencies
+                    # Nuke the entire Gradle home to clear ALL corrupted state
+                    # (lock files, metadata, daemon info, native cache — everything)
+                    rm -rf /root/.gradle/caches/ /root/.gradle/daemon/ /root/.gradle/native/ /root/.gradle/build-scan-data/ || true
+                    
+                    ./gradlew clean build --no-daemon --max-workers=1
                 '''
             }
         }
