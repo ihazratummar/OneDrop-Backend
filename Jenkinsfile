@@ -20,6 +20,19 @@ pipeline {
 
     stages {
 
+        stage('Pre-build Cleanup') {
+            steps {
+                sh '''
+                    # Drop page cache before heavy build
+                    sync && echo 3 | sudo tee /proc/sys/vm/drop_caches || true
+                    # Remove dangling docker layers
+                    docker system prune -f --volumes || true
+                    free -h
+                '''
+            }
+        }
+
+
         stage('Pull Code') {
             steps {
                 checkout([
@@ -37,8 +50,9 @@ pipeline {
         stage('Build App (Gradle)') {
             steps {
                 sh '''
-                    echo "Building with Gradle..."
-                    ./gradlew clean build --no-daemon
+                    export JAVA_OPTS="-Xmx512m -Xms256m"
+                    export GRADLE_OPTS="-Xmx512m -Dorg.gradle.jvmargs=-Xmx512m"
+                    ./gradlew clean build --no-daemon --max-workers=1
                 '''
             }
         }
@@ -46,8 +60,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    echo "Building Docker image..."
-                    DOCKER_BUILDKIT=0 docker build --memory=2g --memory-swap=3g -t onedrop-backend:v1 .
+                    # Give JVM time to fully exit before Docker build starts
+                    sleep 3
+                    docker build --memory=1g --memory-swap=2g -t onedrop-backend:v1 .
                 '''
             }
         }
